@@ -12,7 +12,7 @@ Dockerfile      text eol=lf
 *.yaml          text eol=lf
 *.json5         text eol=lf
 
-# AVD template is `sed`-substituted inside the Linux build stage (handover §5.3)
+# AVD template is `sed`-substituted inside the Linux build stage, so it must stay LF
 avd/*           text eol=lf
 
 # Meta-configs

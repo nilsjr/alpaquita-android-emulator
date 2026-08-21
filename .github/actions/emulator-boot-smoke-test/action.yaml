@@ -1,6 +1,6 @@
 name: 'Emulator Boot Smoke Test'
 description: >-
-  Boots the emulator under KVM and asserts CI assertion #1: the device is reachable
+  Boots the emulator under KVM and asserts: the device is reachable
   over adb, reports the expected SDK level, the baked AVD was found, the android CLI
   pre-warm did not regress, and a launch-time locale is honored without a framework
   restart. Runs a root leg (release gate), an alternate-UID leg (future-proofing

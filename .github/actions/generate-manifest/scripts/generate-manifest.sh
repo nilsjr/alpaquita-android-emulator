@@ -30,8 +30,8 @@ get_apk_packages() {
 }
 
 # Authoritative install version, straight from the SDK package's own metadata — the
-# same file setup-emulator.sh asserts against at build time (handover §5.2 defect #4:
-# never ship a config value that does not reflect what actually got installed).
+# same file setup-emulator.sh asserts against at build time (never ship a config
+# value that does not reflect what actually got installed).
 get_emulator_version() {
     docker run --rm "$image" sh -c \
         'grep "^Pkg.Revision" "${ANDROID_HOME}/emulator/source.properties" 2>/dev/null | cut -d= -f2' |
@@ -50,7 +50,7 @@ get_system_image_row() {
         }' | head -n1
 }
 
-# The baked AVD profile (handover §5.3): name plus the ram/cores/resolution knobs
+# The baked AVD profile: name plus the ram/cores/resolution knobs
 # that matter most for CI boot time and Maestro visibility.
 get_avd_summary() {
     local config

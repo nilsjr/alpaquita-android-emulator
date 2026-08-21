@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Implements CI assertion #2: boots a maestro-variant image and runs a real Maestro
-# flow against it, exercising the same code path the production Jenkins pipeline uses
-# (§2.7.4) instead of merely checking that the maestro binary exists.
+# Boots a maestro-variant image and runs a real Maestro flow against it, exercising
+# the same code path the production Jenkins pipeline uses instead of merely checking
+# that the maestro binary exists.
 #
 # Usage: maestro-smoke-test.sh <image> <flow_path>
 

@@ -74,8 +74,8 @@ This repository maintains a specialized, high-performance Docker image designed 
 
 This repository builds `FROM` the pinned upstream image described above and adds a hardware-accelerated
 Android emulator, plus an optional Maestro CLI layer on top. Everything above still applies; the rules
-below are additive and specific to the emulator/Maestro surface. See `CONTRACT.md`-derived decisions in
-the handover spec for the full rationale — this section states the resulting *rules*, not the analysis.
+below are additive and specific to the emulator/Maestro surface. This section states the resulting
+*rules*; the analysis behind them lives in this repository's README and git history.
 
 ## AVD Placement — `ANDROID_AVD_HOME` Lives Outside `ANDROID_SDK_HOME`
 * `ANDROID_AVD_HOME=/opt/android/user` would look like the obvious choice — it is not the one we use.

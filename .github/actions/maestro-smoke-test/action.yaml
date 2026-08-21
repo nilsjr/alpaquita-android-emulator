@@ -1,7 +1,7 @@
 name: 'Maestro Smoke Test'
 description: >-
   Boots the emulator and runs a trivial Maestro flow against com.android.settings to
-  prove Maestro can see the device over adb — CI assertion #2 (maestro variant only).
+  prove Maestro can see the device over adb (maestro variant only).
   Mirrors the production pipeline's shape (JUnit report, analytics disabled).
 
 inputs:

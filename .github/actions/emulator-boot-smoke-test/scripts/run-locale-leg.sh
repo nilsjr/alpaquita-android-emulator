@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Boots a second, dedicated container with EMULATOR_LOCALE set and asserts the device
-# boots directly into that locale — the §2.7.4 win over the old "boot, setprop,
-# stop/start, reboot" dance, verified here without any framework restart.
+# boots directly into that locale — replacing the old "boot, setprop, stop/start,
+# reboot" dance — verified here without any framework restart.
 #
 # Usage: run-locale-leg.sh <image> <container_name> <locale>
 

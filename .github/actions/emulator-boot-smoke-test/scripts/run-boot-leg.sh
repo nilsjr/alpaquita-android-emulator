@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Boots the emulator inside a single container invocation and asserts the parts of
-# CONTRACT.md's CI assertion #1 that do not depend on locale: the device is reachable,
-# reports the matrix's SDK level, the baked AVD was found (the §2.7.3 mount trap), and
-# the android CLI pre-warm did not regress (§2.6).
+# Boots the emulator inside a single container invocation and asserts everything that
+# does not depend on locale: the device is reachable, reports the matrix's SDK level,
+# the baked AVD was found (a mount over /opt/android/user would silently mask it), and
+# the android CLI pre-warm did not regress (no 235 MB re-download).
 #
 # Usage: run-boot-leg.sh <image> <api_level> <container_name> [-- extra docker run args...]
 
@@ -46,7 +46,7 @@ fi
 
 avd_list=$(docker exec "$container_name" avdmanager list avd)
 if grep -q "Unknown AVD" <<<"$avd_list" || ! grep -q "android-ci" <<<"$avd_list"; then
-    echo "ERROR: AVD 'android-ci' was not found (a volume mount may have masked it, see §2.7.3):" >&2
+    echo "ERROR: AVD 'android-ci' was not found (a volume mounted over /opt/android/user may have masked it):" >&2
     echo "$avd_list" >&2
     dump_diagnostics "$container_name"
     exit 1
@@ -55,7 +55,7 @@ fi
 # Regression guard: a re-download here means the android CLI pre-warm (build time)
 # was skipped or ANDROID_USER_HOME drifted — every downstream CI job would eat 235 MB.
 if grep -q "Downloading Android CLI" "$output_log"; then
-    echo "ERROR: 'Downloading Android CLI' appeared in container output — pre-warm regression (§2.6)" >&2
+    echo "ERROR: 'Downloading Android CLI' appeared in container output — pre-warm regression" >&2
     dump_diagnostics "$container_name"
     exit 1
 fi

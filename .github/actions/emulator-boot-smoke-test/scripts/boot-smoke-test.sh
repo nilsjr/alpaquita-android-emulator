@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Orchestrates CONTRACT.md's CI assertion #1: the root leg (release gate), the
-# alternate-UID leg (future-proofing only, not a release gate — §6.2), and the
-# locale leg (the §2.7.4 win), each in its own container so a failure on one leg
-# cannot poison the next.
+# Orchestrates the boot smoke test: the root leg (release gate), the alternate-UID
+# leg (future-proofing for a possible non-root cluster, not a release gate), and the
+# locale leg (the device boots straight into the target locale), each in its own
+# container so a failure on one leg cannot poison the next.
 #
 # Each leg runs as a separate script invocation (a fresh bash process) rather than a
 # sourced function, so that calling it inside `if ...; then` does not suspend
@@ -32,7 +32,7 @@ echo "::group::Boot leg (alternate UID, future-proofing only)"
 if "$script_dir/run-boot-leg.sh" "$image" "$api_level" "emulator-boot-altuid" --user 12345:0 -e HOME=/tmp; then
     echo "Alternate-UID leg passed."
 else
-    echo "::warning::Alternate-UID leg failed — future-proofing only (§6.2), not a release gate."
+    echo "::warning::Alternate-UID leg failed — future-proofing for a possible non-root cluster, not a release gate."
 fi
 echo "::endgroup::"
 

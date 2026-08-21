@@ -37,7 +37,7 @@ is_pid_alive() {
 }
 
 # Writes one JSON line to stdout. This is readable log output, not a parsed protocol: the
-# production pipeline that inherited this format never actually consumes it (handover §2.7.4).
+# production pipeline that inherited this format never actually consumes it.
 write_log() {
     local log_type="$1" value="$2"
     printf '{"type":"%s","value":"%s"}\n' "${log_type}" "${value}"
@@ -112,7 +112,7 @@ enable_hidden_api_policy() {
 # Warn-only, and deliberately does not restart the framework: a "setprop + stop; start" cycle
 # to fix a mismatched locale costs a full second boot inside the CI time budget, which is
 # exactly what passing EMULATOR_LOCALE as a launch property (see emulator-tools) exists to
-# avoid (handover §2.7.4). If this ever warns, the launch property/AVD default disagree with
+# avoid. If this ever warns, the launch property/AVD default disagree with
 # the caller's expectation, but the device is still usable.
 assert_locale_matches() {
     [ -n "${EMULATOR_LOCALE:-}" ] || return 0

@@ -70,7 +70,7 @@
             // Tracks the STABLE-channel emulator revision Google publishes — the same
             // channel `sdkmanager --channel=0` installs (see the emulator_version
             // custom datasource below). Mirrors setup-emulator.sh's own assert: if this
-            // drifts from what actually gets installed, the build fails loudly (§2.5/§6.3)
+            // drifts from what actually gets installed, the build fails loudly
             // rather than shipping a silently-wrong image.
             customType: 'regex',
             managerFilePatterns: [

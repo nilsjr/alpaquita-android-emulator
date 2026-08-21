@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Resolves the STABLE-channel Android emulator version + build id from Google's
 # repository XML, then asserts every requested API level still has a published
-# google_atd x86_64 system image. This is the handover's §2.5 ceiling assert: the
-# SDK *platform* and the emulator *system image* are versioned independently, so a
-# platform release does not imply a bootable system image exists yet.
+# google_atd x86_64 system image. The SDK *platform* and the emulator *system image*
+# are versioned independently, so a platform release does not imply a bootable system
+# image exists yet — that ceiling must be asserted, not assumed.
 #
 # Usage: fetch-emulator-version.sh <comma-separated-api-levels>
 # Prints: "<version> <build_id>" on success, e.g. "37.1.11 15917651"
@@ -65,7 +65,7 @@ done
 
 if [[ ${#missing_api_levels[@]} -gt 0 ]]; then
     echo "ERROR: no google_atd x86_64 system image published for API level(s): ${missing_api_levels[*]}" >&2
-    echo "This is the §2.5 ceiling: the SDK platform can ship ahead of the system image." >&2
+    echo "The SDK platform can ship ahead of the system image; only the system image is bootable." >&2
     echo "Lower EMULATOR_API_LEVELS in versions.env until Google publishes these images." >&2
     exit 1
 fi
