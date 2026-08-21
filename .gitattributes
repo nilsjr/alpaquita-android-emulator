@@ -1,0 +1,21 @@
+# Default: Auto-detect text files and normalize to LF
+* text=auto
+
+# Must be LF to execute in Linux/Docker/Hooks
+.githooks/*     text eol=lf
+scripts/*       text eol=lf
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.env           text eol=lf
+
+# Explicit LF for config files to ensure cross-platform consistency
+*.yaml          text eol=lf
+*.json5         text eol=lf
+
+# AVD template is `sed`-substituted inside the Linux build stage (handover §5.3)
+avd/*           text eol=lf
+
+# Meta-configs
+.editorconfig   text eol=lf
+.gitattributes  text eol=lf
+.dockerignore   text eol=lf

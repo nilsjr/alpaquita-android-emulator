@@ -16,3 +16,9 @@ dist/
 *.pem
 adbkey
 adbkey.pub
+
+# CI-generated reports (produced locally when testing .github/actions/* scripts;
+# CI itself never commits these — they become release-note/summary content instead)
+manifest_*.md
+dive-output.json
+trivy-results.*
