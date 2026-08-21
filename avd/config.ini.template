@@ -1,0 +1,41 @@
+# Template for the "android-ci" AVD's config.ini, substituted with sed at image build
+# time by scripts/setup-emulator.sh (no envsubst — gettext isn't installed in the base
+# image). @PLACEHOLDER@ style is used deliberately so substitution can't collide with a
+# literal "$" that a future ini value might contain.
+#
+# hw.cpu.arch is intentionally hardcoded to x86_64: every supported system image in this
+# project targets x86_64 (versions.env SYSTEM_IMAGE_ARCHITECTURE), independent of the
+# @ARCHITECTURE@ placeholder used for the abi/image-path values below.
+AvdId=android-ci
+PlayStore.enabled=false
+abi.type=@ARCHITECTURE@
+avd.ini.displayname=android-ci
+avd.ini.encoding=UTF-8
+disk.dataPartition.size=@DATA_PARTITION_SIZE@
+hw.accelerometer=no
+hw.audioInput=no
+hw.audioOutput=no
+hw.cpu.arch=x86_64
+hw.cpu.ncore=@CORES@
+hw.dPad=no
+hw.gyroscope=no
+hw.keyboard=no
+hw.lcd.density=@LCD_DENSITY@
+hw.lcd.height=@LCD_HEIGHT@
+hw.lcd.width=@LCD_WIDTH@
+hw.mainKeys=yes
+hw.ramSize=@RAM_MB@
+hw.sensors.gyroscope_uncalibrated=no
+hw.sensors.humidity=no
+hw.sensors.light=no
+hw.sensors.magnetic_field=no
+hw.sensors.magnetic_field_uncalibrated=no
+hw.sensors.orientation=no
+hw.sensors.pressure=no
+hw.sensors.proximity=no
+hw.sensors.temperature=no
+image.sysdir.1=system-images/android-@API_LEVEL@/@IMG_TYPE@/@ARCHITECTURE@/
+skin.dynamic=yes
+skin.name=@LCD_WIDTH@x@LCD_HEIGHT@
+tag.display=@IMG_TYPE@
+tag.id=@IMG_TYPE@
