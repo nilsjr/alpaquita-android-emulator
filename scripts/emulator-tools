@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2154
+# File-wide: emulator_serial and the emulator_*_file/emulator_state_dir path constants come
+# from emulator-lib.sh, sourced below from its installed, absolute path, which static
+# analysis cannot follow.
+set -euo pipefail
+
+# shellcheck source=/dev/null
+source /usr/local/bin/emulator-lib.sh
+
+: "${EMULATOR_AVD_NAME:=android-ci}"
+: "${EMULATOR_CORES:=4}"
+: "${EMULATOR_DISABLE_ANIMATIONS:=true}"
+: "${EMULATOR_HIDDEN_API_POLICY:=true}"
+: "${EMULATOR_WIPE_DATA:=false}"
+: "${GPU_ACCELERATED:=false}"
+: "${ADB_EXPOSE:=false}"
+
+usage() {
+    cat <<'EOF'
+Usage: emulator-tools <command> [options]
+Available commands:
+  disable-animations - Sets the three animation-scale settings to 0 (idempotent)
+  start [--wait]      - Launches the emulator in the background; --wait also blocks until ready
+  status              - Prints process/adb/boot status; exits 0 only when fully booted
+  stop                - Stops the emulator and any helper processes it started
+  wait-ready          - Blocks until the emulator finishes booting (non-zero exit on timeout)
+EOF
+}
+
+# Docker's default bridge network registers a container's own IP against its hostname in
+# /etc/hosts, so `getent` (glibc, always present on this base image) resolves it without
+# depending on `ip`/iproute2, which is not part of the apk package set this image installs.
+container_ip() {
+    getent hosts "$(hostname)" | awk 'NR==1 { print $1 }'
+}
+
+start_xvfb() {
+    Xvfb ":0.0" -screen 0 1920x1080x16 -nolisten tcp >>"${emulator_log_file}" 2>&1 &
+    echo "$!" >"${emulator_xvfb_pid_file}"
+}
+
+start_adb_expose_forwarders() {
+    local host_ip
+    host_ip=$(container_ip)
+    if [ -z "${host_ip}" ]; then
+        echo "Warning: ADB_EXPOSE=true but the container IP could not be determined;" \
+            "skipping socat forwarders." >&2
+        return 0
+    fi
+
+    : >"${emulator_socat_pid_file}"
+    local port
+    for port in 5554 5555; do
+        socat "tcp-listen:${port},bind=${host_ip},fork,reuseaddr" "tcp:127.0.0.1:${port}" \
+            >>"${emulator_log_file}" 2>&1 &
+        echo "$!" >>"${emulator_socat_pid_file}"
+    done
+}
+
+stop_background_helpers() {
+    local pid
+    if [ -f "${emulator_socat_pid_file}" ]; then
+        while read -r pid; do
+            if is_pid_alive "${pid}"; then
+                kill -TERM "${pid}" 2>/dev/null || true
+            fi
+        done <"${emulator_socat_pid_file}"
+        rm -f "${emulator_socat_pid_file}"
+    fi
+    if [ -f "${emulator_xvfb_pid_file}" ]; then
+        pid=$(cat "${emulator_xvfb_pid_file}")
+        if is_pid_alive "${pid}"; then
+            kill -TERM "${pid}" 2>/dev/null || true
+        fi
+        rm -f "${emulator_xvfb_pid_file}"
+    fi
+}
+
+# Populates the global `emulator_args` array with the battle-tested flag set from the old
+# repo's start-emulator.sh, fixing defect #4 by only adding -memory when EMULATOR_RAM_MB is
+# actually set (the old script read MEMORY/PARTITION_SIZE and then never passed either one to
+# the emulator) and defect #16 by passing the locale as a launch property instead of a
+# post-boot setprop + framework restart.
+build_emulator_args() {
+    emulator_args=(
+        -avd "${EMULATOR_AVD_NAME}"
+        -port 5554
+        -gpu "${GPU_MODE}"
+        -cores "${EMULATOR_CORES}"
+        -skip-adb-auth
+        -no-audio
+        -no-boot-anim
+        -no-window
+        -no-snapshot-save
+    )
+    [ -n "${EMULATOR_RAM_MB:-}" ] && emulator_args+=(-memory "${EMULATOR_RAM_MB}")
+    [ "${EMULATOR_WIPE_DATA}" = "true" ] && emulator_args+=(-wipe-data)
+    [ -n "${EMULATOR_LOCALE:-}" ] && emulator_args+=(-prop "persist.sys.locale=${EMULATOR_LOCALE}")
+
+    if [ -n "${EMULATOR_EXTRA_ARGS:-}" ]; then
+        local -a extra_args
+        set -f
+        # EMULATOR_EXTRA_ARGS is an intentionally unquoted, space-separated flag list, per the
+        # contract's runtime CLI surface — word-splitting here is deliberate.
+        # shellcheck disable=SC2206
+        extra_args=(${EMULATOR_EXTRA_ARGS})
+        set +f
+        emulator_args+=("${extra_args[@]}")
+    fi
+}
+
+cmd_start() {
+    local wait_after_start=false
+    case "${1:-}" in
+        --wait)
+            wait_after_start=true
+            ;;
+        "") ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+
+    ensure_state_dir
+    kvm_preflight || exit 1
+
+    adb start-server
+
+    # GPU_MODE, if the caller already exported it, overrides both branches below.
+    if [ "${GPU_ACCELERATED}" = "true" ]; then
+        start_xvfb
+        export DISPLAY=":0.0"
+        : "${GPU_MODE:=host}"
+    else
+        : "${GPU_MODE:=swiftshader_indirect}"
+    fi
+
+    local -a emulator_args
+    build_emulator_args
+
+    # mimalloc is preloaded image-wide via LD_PRELOAD to speed up Gradle/Kotlin, but it must
+    # not wrap qemu, so it is explicitly cleared for this one launch.
+    LD_PRELOAD='' nohup emulator "${emulator_args[@]}" >>"${emulator_log_file}" 2>&1 &
+    local emulator_pid=$!
+    disown
+    echo "${emulator_pid}" >"${emulator_pid_file}"
+
+    if [ "${ADB_EXPOSE}" = "true" ]; then
+        start_adb_expose_forwarders
+    fi
+
+    if [ "${wait_after_start}" = "true" ]; then
+        cmd_wait_ready
+    fi
+}
+
+cmd_wait_ready() {
+    ensure_state_dir
+
+    if ! wait_for_boot; then
+        exit 1
+    fi
+
+    [ "${EMULATOR_DISABLE_ANIMATIONS}" = "true" ] && disable_animations
+    [ "${EMULATOR_HIDDEN_API_POLICY}" = "true" ] && enable_hidden_api_policy
+    assert_locale_matches
+
+    update_state "ANDROID_READY"
+}
+
+cmd_stop() {
+    ensure_state_dir
+
+    adb -s "${emulator_serial}" emu kill 2>/dev/null || true
+
+    local waited=0
+    while [ -f "${emulator_pid_file}" ] && is_pid_alive "$(cat "${emulator_pid_file}")" \
+        && [ "${waited}" -lt 30 ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    if [ -f "${emulator_pid_file}" ]; then
+        local pid
+        pid=$(cat "${emulator_pid_file}")
+        if is_pid_alive "${pid}"; then
+            kill -TERM "${pid}" 2>/dev/null || true
+        fi
+    fi
+
+    stop_background_helpers
+    rm -f "${emulator_pid_file}"
+    update_state "ANDROID_STOPPED"
+}
+
+cmd_status() {
+    local process_running=false
+    local adb_state="absent"
+    local boot_completed="unknown"
+
+    if [ -f "${emulator_pid_file}" ] && is_pid_alive "$(cat "${emulator_pid_file}")"; then
+        process_running=true
+    fi
+
+    local reported_state
+    reported_state=$(adb devices 2>/dev/null | awk -v serial="${emulator_serial}" '$1 == serial { print $2 }')
+    [ -n "${reported_state}" ] && adb_state="${reported_state}"
+
+    if [ "${adb_state}" = "device" ]; then
+        boot_completed=$(adb -s "${emulator_serial}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r\n')
+        [ -z "${boot_completed}" ] && boot_completed="0"
+    fi
+
+    echo "emulator process running: ${process_running}"
+    echo "adb state: ${adb_state}"
+    echo "sys.boot_completed: ${boot_completed}"
+
+    if [ "${process_running}" = "true" ] && [ "${adb_state}" = "device" ] && [ "${boot_completed}" = "1" ]; then
+        return 0
+    fi
+    return 1
+}
+
+main() {
+    ensure_state_dir
+
+    local subcommand="${1:-}"
+    if [ "$#" -gt 0 ]; then
+        shift
+    fi
+
+    case "${subcommand}" in
+        disable-animations)
+            disable_animations
+            ;;
+        start)
+            cmd_start "$@"
+            ;;
+        status)
+            cmd_status
+            ;;
+        stop)
+            cmd_stop
+            ;;
+        wait-ready)
+            cmd_wait_ready
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
