@@ -1,0 +1,25 @@
+name: 'Emulator Boot Smoke Test'
+description: >-
+  Boots the emulator under KVM and asserts CI assertion #1: the device is reachable
+  over adb, reports the expected SDK level, the baked AVD was found, the android CLI
+  pre-warm did not regress, and a launch-time locale is honored without a framework
+  restart. Runs a root leg (release gate), an alternate-UID leg (future-proofing
+  only), and a locale leg.
+
+inputs:
+  image:
+    description: 'Docker image reference to boot (must already be loaded locally, e.g. via buildx --load)'
+    required: true
+  api_level:
+    description: 'Expected ro.build.version.sdk for this image'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Run boot smoke test'
+      shell: bash
+      run: |
+        "${{ github.action_path }}/scripts/boot-smoke-test.sh" \
+          "${{ inputs.image }}" \
+          "${{ inputs.api_level }}"

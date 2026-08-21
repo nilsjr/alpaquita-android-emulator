@@ -1,0 +1,20 @@
+name: 'Maestro Smoke Test'
+description: >-
+  Boots the emulator and runs a trivial Maestro flow against com.android.settings to
+  prove Maestro can see the device over adb — CI assertion #2 (maestro variant only).
+  Mirrors the production pipeline's shape (JUnit report, analytics disabled).
+
+inputs:
+  image:
+    description: 'Docker image reference to boot (must be the maestro variant, already loaded locally)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Run Maestro smoke test'
+      shell: bash
+      run: |
+        "${{ github.action_path }}/scripts/maestro-smoke-test.sh" \
+          "${{ inputs.image }}" \
+          "${{ github.action_path }}/flows/settings-smoke.yaml"

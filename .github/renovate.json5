@@ -1,0 +1,150 @@
+{
+    $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+    extends: [
+        'config:best-practices',
+        ':semanticCommits',
+        ':semanticCommitTypeAll(ci)',
+        ':disableRateLimiting',
+        ':automergeAll',
+    ],
+    // The g00fy2/alpaquita-android base image in the Dockerfile FROM line is already
+    // pinned as tag@digest, so Renovate's built-in docker manager tracks and bumps it
+    // automatically — no custom manager or datasource is needed for it.
+    customManagers: [
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '.github/workflows/*.yaml',
+            ],
+            matchStrings: [
+                'DOCKER_BUILDX_VERSION:\\s*(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'docker/buildx',
+            datasourceTemplate: 'github-releases',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '.github/workflows/*.yaml',
+            ],
+            matchStrings: [
+                'DOCKER_BUILDKIT_VERSION:\\s*(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'moby/buildkit',
+            datasourceTemplate: 'github-releases',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '.github/workflows/*.yaml',
+            ],
+            matchStrings: [
+                'DIVE_VERSION:\\s*(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'wagoodman/dive',
+            datasourceTemplate: 'github-releases',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '.github/workflows/*.yaml',
+            ],
+            matchStrings: [
+                'ACTIONLINT_VERSION:\\s*(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'rhysd/actionlint',
+            datasourceTemplate: 'github-releases',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '.github/workflows/*.yaml',
+            ],
+            matchStrings: [
+                'YAMLLINT_VERSION:\\s*(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'yamllint',
+            datasourceTemplate: 'pypi',
+        },
+        {
+            // Tracks the STABLE-channel emulator revision Google publishes — the same
+            // channel `sdkmanager --channel=0` installs (see the emulator_version
+            // custom datasource below). Mirrors setup-emulator.sh's own assert: if this
+            // drifts from what actually gets installed, the build fails loudly (§2.5/§6.3)
+            // rather than shipping a silently-wrong image.
+            customType: 'regex',
+            managerFilePatterns: [
+                '/versions\\.env$/',
+            ],
+            matchStrings: [
+                'ANDROID_EMULATOR_VERSION=(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'android_emulator_version',
+            datasourceTemplate: 'custom.android_emulator_version',
+        },
+        {
+            // mobile-dev-inc/maestro tags releases as "cli-<version>" (e.g. "cli-2.8.0");
+            // extractVersionTemplate strips that prefix so it compares as plain semver.
+            customType: 'regex',
+            managerFilePatterns: [
+                '/versions\\.env$/',
+            ],
+            matchStrings: [
+                'MAESTRO_VERSION=(?<currentValue>.*)',
+            ],
+            depNameTemplate: 'mobile-dev-inc/maestro',
+            datasourceTemplate: 'github-releases',
+            extractVersionTemplate: '^cli-(?<version>.*)$',
+        },
+    ],
+    customDatasources: {
+        // Resolves the emulator revision (major.minor.micro) tied to the STABLE channel
+        // in Google's repository XML. Google lists the dev/beta/stable/canary emulator
+        // packages back-to-back, each as path -> revision -> channelRef, so pairing a
+        // "channel-0" (stable) channelRef line with the "remotePackage path=\"emulator\""
+        // marker four filtered lines earlier — and the two revision lines in between —
+        // reliably identifies the stable release without depending on which channel
+        // happens to be listed first. Verified against the live XML on 2026-08-21.
+        android_emulator_version: {
+            defaultRegistryUrlTemplate: 'https://dl.google.com/android/repository/repository2-3.xml',
+            format: 'plain',
+            transformTemplates: [
+                "($arr := releases.version; $matchIdx := $arr#$i[$contains($, '<channelRef ref=\"channel-0\"/>') and $i >= 4 and $contains($arr[$i-4], 'remotePackage path=\"emulator\"')].$i; $idx := $matchIdx[0]; $idx != null ? {\"releases\": [{\"version\": $replace($arr[$idx-3], /.*<major>([0-9]+).*/, \"$1\") & \".\" & $replace($arr[$idx-2], /.*<minor>([0-9]+).*/, \"$1\") & \".\" & $replace($arr[$idx-1], /.*<micro>([0-9]+).*/, \"$1\")}]} : {\"releases\": []})",
+            ],
+        },
+    },
+    packageRules: [
+        {
+            description: 'Use "fix" for the pinned base image digest bump',
+            matchPackageNames: [
+                'g00fy2/alpaquita-android',
+            ],
+            semanticCommitType: 'fix',
+        },
+        {
+            description: 'Group official Docker Build Tool and Actions',
+            matchPackageNames: [
+                'docker/**',
+                'moby/**',
+            ],
+            groupName: 'docker build tools and actions',
+            separateMajorMinor: false,
+            // Every Sunday (all day)
+            schedule: [
+                '* * * * 0',
+            ],
+        },
+        {
+            description: 'Group official GitHub Actions',
+            matchPackageNames: [
+                'actions/**',
+            ],
+            groupName: 'github core actions',
+            separateMajorMinor: false,
+            // Every Sunday (all day)
+            schedule: [
+                '* * * * 0',
+            ]
+        }
+    ],
+}

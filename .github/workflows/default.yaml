@@ -1,0 +1,320 @@
+name: "Android Emulator Image Pipeline"
+
+on:
+  release:
+    types:
+      - created
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+
+concurrency:
+  # Git tags and GitHub release events get a unique run_id to prevent cancellation.
+  # Other events (main/PRs) use the branch name to allow canceling outdated builds.
+  group: >-
+    ${{ startsWith(github.ref, 'refs/tags/') && github.run_id || github.workflow }}-${{ github.head_ref || github.ref }}
+  # Only cancel running jobs if the current event is NEITHER a tag push NOR a GitHub release
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    name: "🛠️ Prepare Build Matrix"
+    runs-on: ubuntu-24.04
+    outputs:
+      environment: ${{ steps.set-environment.outputs.environment }}
+      version_suffix: ${{ steps.set-environment.outputs.version_suffix }}
+      api_levels: ${{ steps.api-levels.outputs.json }}
+      latest_api_level: ${{ steps.api-levels.outputs.latest }}
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: "Set GitHub Deployment Environment"
+        id: set-environment
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "environment=release" >> "$GITHUB_OUTPUT"
+            echo "version_suffix=" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+            echo "version_suffix=-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Prepare environment variables"
+        run: |
+          grep -v '^#' versions.env >> "$GITHUB_ENV"
+
+      - name: "Resolve API level matrix from versions.env"
+        id: api-levels
+        run: |
+          # EMULATOR_API_LEVELS is newest-first (e.g. "36,34"); the first entry is the
+          # one that receives the `latest` tag and the one PR/main builds narrow down to.
+          json=$(echo "${{ env.EMULATOR_API_LEVELS }}" | tr ',' '\n' | jq -R . | jq -s -c .)
+          latest=$(echo "${{ env.EMULATOR_API_LEVELS }}" | cut -d',' -f1)
+          echo "API levels: $json (latest: $latest)"
+          echo "json=$json" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: "Fetch stable emulator version and assert the system-image ceiling"
+        uses: ./.github/actions/emulator-version-fetcher
+        with:
+          api_levels: ${{ env.EMULATOR_API_LEVELS }}
+
+  versioning:
+    name: "🏷️ Versioning"
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.generate-version.outputs.version }}
+      create_release_tag: ${{ steps.generate-version.outputs.create_release_tag }}
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: ./.github/actions/generate-version
+        id: generate-version
+        with:
+          version_tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          minor_types: 'feat'
+          patch_types: 'fix'
+
+  build:
+    needs: [ setup, versioning ]
+    runs-on: ubuntu-24.04
+    environment: ${{ needs.setup.outputs.environment }}
+    name: >
+      ${{ needs.setup.outputs.environment == 'release' && '📦 Build' || '🔬 Validate' }}
+      (API ${{ matrix.api_level }}, ${{ matrix.variant }})
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # variant is always the full set; api_level narrows to the latest level alone
+        # on PR/main so preview builds cover one combo per variant, while releases
+        # build the full API x variant matrix (mirrors upstream's narrowing pattern).
+        variant: [ emulator, maestro ]
+        api_level: ${{
+          fromJson(
+          needs.setup.outputs.environment == 'release' &&
+          needs.setup.outputs.api_levels ||
+          format('["{0}"]', needs.setup.outputs.latest_api_level)
+          ) }}
+
+    env:
+      IMAGE_VERSION: ${{ needs.versioning.outputs.version }}${{ needs.setup.outputs.version_suffix }}
+      DOCKER_HUB_IMAGE_NAME: nilsjrfn/alpaquita-android-emulator
+      DOCKER_HUB_USERNAME: nilsjrfn
+      TAG_SUFFIX: ${{ matrix.variant == 'maestro' && '-maestro' || '' }}
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: "Prepare environment variables"
+        run: |
+          grep -v '^#' versions.env >> "$GITHUB_ENV"
+
+      - name: "Compute Docker build args"
+        id: build-args
+        run: |
+          {
+            echo 'build_args<<BUILD_ARGS_EOF'
+            echo "VARIANT=${{ matrix.variant }}"
+            echo "API_LEVEL=${{ matrix.api_level }}"
+            echo "IMG_TYPE=${{ env.SYSTEM_IMAGE_TYPE_DEFAULT }}"
+            echo "ARCHITECTURE=${{ env.SYSTEM_IMAGE_ARCHITECTURE }}"
+            echo "ANDROID_EMULATOR_VERSION=${{ env.ANDROID_EMULATOR_VERSION }}"
+            echo "RAM_MB=${{ env.EMULATOR_RAM_MB }}"
+            echo "CORES=${{ env.EMULATOR_CORES }}"
+            echo "DATA_PARTITION_SIZE=${{ env.EMULATOR_DATA_PARTITION_SIZE }}"
+            echo "LCD_WIDTH=${{ env.EMULATOR_LCD_WIDTH }}"
+            echo "LCD_HEIGHT=${{ env.EMULATOR_LCD_HEIGHT }}"
+            echo "LCD_DENSITY=${{ env.EMULATOR_LCD_DENSITY }}"
+            # MAESTRO_VERSION is only declared as an ARG in the maestro stage; passing it
+            # for the emulator variant would just produce an "unconsumed build-arg" warning.
+            if [[ "${{ matrix.variant }}" == "maestro" ]]; then
+              echo "MAESTRO_VERSION=${{ env.MAESTRO_VERSION }}"
+            fi
+            echo 'BUILD_ARGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Docker metadata"
+        id: docker-metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: |
+            ${{ env.DOCKER_HUB_IMAGE_NAME }}
+          tags: |
+            type=raw,value=android-${{ matrix.api_level }}-emulator${{ env.TAG_SUFFIX }}-${{ env.IMAGE_VERSION }}
+            type=raw,value=android-${{ matrix.api_level }}-emulator${{ env.TAG_SUFFIX }}
+            type=raw,value=latest,enable=${{
+              needs.setup.outputs.environment == 'release' &&
+              matrix.variant == 'emulator' &&
+              matrix.api_level == needs.setup.outputs.latest_api_level
+            }}
+
+      - name: "Set Docker image reference"
+        id: set-image-ref
+        run: |
+          tag=$(echo "${{ steps.docker-metadata.outputs.tag-names }}" | head -n 1)
+          echo "image=${{ env.DOCKER_HUB_IMAGE_NAME }}:$tag" >> "$GITHUB_OUTPUT"
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        env:
+          DOCKER_BUILDX_VERSION: v0.36.1
+          DOCKER_BUILDKIT_VERSION: v0.32.2
+        with:
+          version: ${{ env.DOCKER_BUILDX_VERSION }}
+          driver-opts: image=moby/buildkit:${{ env.DOCKER_BUILDKIT_VERSION }}
+
+      - name: "Build Docker Image without pushing"
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          load: true
+          platforms: linux/amd64
+          tags: ${{ steps.docker-metadata.outputs.tags }}
+          labels: ${{ steps.docker-metadata.outputs.labels }}
+          build-args: ${{ steps.build-args.outputs.build_args }}
+
+      - name: "Run Dive"
+        id: dive-analyze
+        uses: ./.github/actions/dive-analyze
+        env:
+          DIVE_VERSION: v0.13.1
+        with:
+          image-ref: ${{ steps.set-image-ref.outputs.image }}
+          dive-ci-config: .github/.dive-ci.yaml
+          dive-version: ${{ env.DIVE_VERSION }}
+
+      - name: "Run Trivy"
+        id: trivy
+        continue-on-error: true # Non-blocking CVE visibility. Fails softly as we use latest versions.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DISABLE_VEX_NOTICE: true
+        with:
+          image-ref: ${{ steps.set-image-ref.outputs.image }}
+          scan-type: image
+          trivy-config: .github/trivy.yaml
+
+      - name: "Annotate Trivy Failures"
+        if: steps.trivy.outcome == 'failure'
+        run: |
+          echo "::notice title=Trivy Report::Exit code 1 indicates found CVEs. Check 'Run Trivy' logs for details."
+
+      - name: "Enable KVM for all users"
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: "Run Emulator Boot Smoke Test"
+        uses: ./.github/actions/emulator-boot-smoke-test
+        with:
+          image: ${{ steps.set-image-ref.outputs.image }}
+          api_level: ${{ matrix.api_level }}
+
+      - name: "Run Maestro Smoke Test"
+        if: ${{ matrix.variant == 'maestro' }}
+        uses: ./.github/actions/maestro-smoke-test
+        with:
+          image: ${{ steps.set-image-ref.outputs.image }}
+
+      - name: "Upload Maestro JUnit report"
+        if: ${{ matrix.variant == 'maestro' && always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: maestro-report-android${{ matrix.api_level }}
+          path: maestro-report.junit.xml
+          if-no-files-found: warn
+          archive: false
+
+      - name: "Run image and generate Manifest"
+        id: generate-manifest
+        uses: ./.github/actions/generate-manifest
+        with:
+          image-ref: ${{ steps.set-image-ref.outputs.image }}
+
+      - name: "Upload manifest artifact"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: manifest-android${{ matrix.api_level }}-${{ matrix.variant }}
+          path: ${{ steps.generate-manifest.outputs.manifest_path }}
+          if-no-files-found: error
+          archive: false
+
+      - name: "Login to Docker Hub"
+        if: ${{ needs.setup.outputs.environment == 'release' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: "Build and push Docker Image"
+        if: ${{ needs.setup.outputs.environment == 'release' }}
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          sbom: true
+          provenance: mode=max
+          tags: ${{ steps.docker-metadata.outputs.tags }}
+          labels: ${{ steps.docker-metadata.outputs.labels }}
+          build-args: ${{ steps.build-args.outputs.build_args }}
+          outputs: type=registry,compression=zstd,compression-level=9,force-compression=true
+
+  build-summary:
+    name: "🏁 Build Matrix Complete"
+    runs-on: ubuntu-24.04
+    if: always()
+    needs: build
+    steps:
+      - name: "Consolidate build status"
+        run: |
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            exit 1
+          fi
+
+  create-or-update-github-release:
+    name: "🚀 Create or update GitHub Release"
+    runs-on: ubuntu-24.04
+    needs: [ setup, versioning, build-summary ]
+    if: >-
+      ${{ success() && (needs.versioning.outputs.create_release_tag == 'true' ||
+      needs.setup.outputs.environment == 'release') }}
+    environment: ${{ needs.setup.outputs.environment }}
+    permissions:
+      contents: write
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: "Merge build manifests"
+        id: merge-manifests
+        uses: ./.github/actions/merge-build-manifests
+
+      - name: "Create GitHub release"
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
+        with:
+          allowUpdates: true
+          bodyFile: ${{ steps.merge-manifests.outputs.merged_manifests_path }}
+          prerelease: ${{ needs.setup.outputs.environment != 'release' }}
+          generateReleaseNotes: true
+          tag: ${{ needs.versioning.outputs.version }}
+          token: ${{ secrets.GH_PAT_TOKEN }}
