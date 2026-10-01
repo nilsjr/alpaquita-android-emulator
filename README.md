@@ -147,6 +147,7 @@ All of these are set as `ENV` in the image (with the defaults below) and are ove
 | `GPU_ACCELERATED` | `false` | When `true`, starts `Xvfb :0.0` and boots with `-gpu host`. When `false`, boots with `-gpu swiftshader_indirect` (software rendering — fine for most UI tests, and the only option without a real GPU behind KVM). |
 | `GPU_MODE` | *(unset)* | Overrides the `-gpu` value `GPU_ACCELERATED` would otherwise select, for the rare case neither `host` nor `swiftshader_indirect` is right. |
 | `MAESTRO_CLI_NO_ANALYTICS` | `1` (maestro variant only) | Disables Maestro CLI telemetry; matches what the production pipeline already sets today. |
+| `MAESTRO_OPTS` | `-Duser.home=/opt/android/user` (maestro variant only) | Puts Maestro's `.maestro` state where any UID can write it. If you override it, keep this flag. |
 
 Baked at build time as Docker build `ARG`s (not runtime env vars — see the Dockerfile if you need to
 build a custom variant): `API_LEVEL`, `IMG_TYPE`, `ARCHITECTURE`, `ANDROID_EMULATOR_VERSION`, `RAM_MB`,

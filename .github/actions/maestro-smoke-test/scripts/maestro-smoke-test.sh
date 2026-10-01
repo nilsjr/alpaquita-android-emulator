@@ -36,7 +36,9 @@ fi
 
 docker cp "$flow_path" "$container_name:/tmp/files-smoke.yaml"
 
-if ! docker exec -e MAESTRO_CLI_NO_ANALYTICS=1 "$container_name" \
+# Maestro runs as an arbitrary UID (HOME=/, no passwd entry) the way a restricted k8s pod
+# runs it; as root it would mask a non-writable state directory.
+if ! docker exec --user 12345:0 -e MAESTRO_CLI_NO_ANALYTICS=1 "$container_name" \
     maestro test --format junit --output "/tmp/$report_name" /tmp/files-smoke.yaml; then
     echo "ERROR: Maestro flow failed" >&2
     timeout 60 docker exec "$container_name" adb logcat -d 2>&1 || true

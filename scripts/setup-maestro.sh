@@ -13,7 +13,11 @@ curl -fsSL --retry 5 \
 unzip -q "${maestro_archive_path}" -d /opt
 rm "${maestro_archive_path}"
 
-installed_version_output=$("${maestro_binary_path}" --version)
+# Throwaway home for the version check: baking .maestro under /opt/android/user would leave
+# root-owned state there that arbitrary UIDs cannot write, and a cache mount would mask it.
+build_time_home=$(mktemp -d)
+installed_version_output=$(MAESTRO_OPTS="-Duser.home=${build_time_home}" "${maestro_binary_path}" --version)
+rm -rf "${build_time_home}"
 if ! grep -q "${maestro_version}" <<<"${installed_version_output}"; then
     echo "Error: '${maestro_binary_path} --version' printed '${installed_version_output}'," >&2
     echo "which does not contain the expected version '${maestro_version}'." >&2
