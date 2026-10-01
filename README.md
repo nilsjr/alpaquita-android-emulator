@@ -15,14 +15,14 @@ docker pull nilsjrfn/alpaquita-android-emulator:latest
 
 > [!TIP]
 > Available images and their exact contents (emulator build-id, system image, Maestro version) are
-> listed in the latest [GitHub Release](https://github.com/nilsjrfn/alpaquita-android-emulator/releases/latest) —
+> listed in the latest [GitHub Release](https://github.com/nilsjr/alpaquita-android-emulator/releases/latest) —
 > generated from the same manifest that upstream produces.
 
 ## What this is, and why
 
 The Android Jenkins pipeline that runs today compiles apps *and* runs Maestro UI tests, using
 `nilsjrfn/docker-android:api-34` — the image produced by the now-archived
-[`nilsjrfn/maestro-emulator`](https://github.com/nilsjrfn/maestro-emulator) repo. That image works; this
+[`nilsjr/maestro-emulator-image`](https://github.com/nilsjr/maestro-emulator-image) repo. That image works; this
 project is an **evolution**, not a rescue: same job (build + boot + test in one container), rebuilt on a
 better foundation, with its real defects fixed rather than carried forward.
 
