@@ -272,6 +272,17 @@ channel actually serves as of this writing — `37.2.5` (build-id `16079175`) li
 Pinning the version our build step actually installs (and asserts against, at build time) keeps
 `versions.env` truthful instead of aspirational.
 
+## Development
+
+The repo ships a `commit-msg` hook in [`.githooks/`](.githooks) that enforces Conventional Commit
+subjects — the same rule the `Lint PR` workflow applies to pull request titles. Git does not pick a
+non-default hooks directory up on its own, and the setting cannot be committed, so enable it once per
+clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Attribution
 
 This project derives substantially from
