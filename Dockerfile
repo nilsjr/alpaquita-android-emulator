@@ -19,7 +19,7 @@ ARG RAM_MB=4096
 
 LABEL org.opencontainers.image.description="Alpaquita Android CI image with a hardware-accelerated Android emulator baked in." \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/nilsjrfn/alpaquita-android-emulator" \
+      org.opencontainers.image.source="https://github.com/nilsjr/alpaquita-android-emulator" \
       org.opencontainers.image.title="Alpaquita Android Emulator"
 
 # ANDROID_AVD_HOME sits outside /opt/android/user on purpose: a k8s cache volume mounted
