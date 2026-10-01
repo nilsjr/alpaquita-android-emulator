@@ -34,10 +34,10 @@ if ! docker exec "$container_name" emulator-tools wait-ready; then
     exit 1
 fi
 
-docker cp "$flow_path" "$container_name:/tmp/settings-smoke.yaml"
+docker cp "$flow_path" "$container_name:/tmp/files-smoke.yaml"
 
 if ! docker exec -e MAESTRO_CLI_NO_ANALYTICS=1 "$container_name" \
-    maestro test --format junit --output "/tmp/$report_name" /tmp/settings-smoke.yaml; then
+    maestro test --format junit --output "/tmp/$report_name" /tmp/files-smoke.yaml; then
     echo "ERROR: Maestro flow failed" >&2
     timeout 60 docker exec "$container_name" adb logcat -d 2>&1 || true
     exit 1

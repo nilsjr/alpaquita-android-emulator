@@ -1,9 +1,0 @@
-# Trivial smoke flow: proves Maestro can drive a booted emulator over adb inside
-# this container, the exact integration that breaks in practice. "Search settings"
-# is the search-box hint text on the Settings main screen, present across the API
-# levels this image targets, so the assertion stays lenient rather than pinned to
-# any one Settings layout.
-appId: com.android.settings
----
-- launchApp
-- assertVisible: "Search settings"

@@ -1,0 +1,10 @@
+# Trivial smoke flow: proves Maestro can drive a booted emulator over adb inside
+# this container, the exact integration that breaks in practice. ATD images ship no
+# Settings app and only an empty stub launcher; the Files app (DocumentsUI) is the one
+# launchable app present on every API level this image publishes. Opening the roots
+# drawer exercises input as well as the view hierarchy.
+appId: com.google.android.documentsui
+---
+- launchApp
+- tapOn: "Show roots"
+- assertVisible: "Recent"

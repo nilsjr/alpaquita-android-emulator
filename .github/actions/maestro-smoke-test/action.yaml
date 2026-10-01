@@ -1,6 +1,6 @@
 name: 'Maestro Smoke Test'
 description: >-
-  Boots the emulator and runs a trivial Maestro flow against com.android.settings to
+  Boots the emulator and runs a trivial Maestro flow against the Files app (DocumentsUI) to
   prove Maestro can see the device over adb (maestro variant only).
   Mirrors the production pipeline's shape (JUnit report, analytics disabled).
 
@@ -17,4 +17,4 @@ runs:
       run: |
         "${{ github.action_path }}/scripts/maestro-smoke-test.sh" \
           "${{ inputs.image }}" \
-          "${{ github.action_path }}/flows/settings-smoke.yaml"
+          "${{ github.action_path }}/flows/files-smoke.yaml"
