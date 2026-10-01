@@ -176,8 +176,8 @@ cmd_stop() {
     adb -s "${emulator_serial}" emu kill 2>/dev/null || true
 
     local waited=0
-    while [ -f "${emulator_pid_file}" ] && is_pid_alive "$(cat "${emulator_pid_file}")" \
-        && [ "${waited}" -lt 30 ]; do
+    while [ -f "${emulator_pid_file}" ] && is_pid_alive "$(cat "${emulator_pid_file}")" &&
+        [ "${waited}" -lt 30 ]; do
         sleep 1
         waited=$((waited + 1))
     done

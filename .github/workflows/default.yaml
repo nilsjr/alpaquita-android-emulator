@@ -126,6 +126,24 @@ jobs:
         run: |
           grep -v '^#' versions.env >> "$GITHUB_ENV"
 
+      - name: "Free up runner disk space"
+        run: |
+          # A single tag carries a full Android system image, and the runner holds it three
+          # times over: the buildx cache, the loaded image, and the copy dive exports into
+          # /var/lib/docker/tmp to inspect it. None of the preinstalled toolchains removed
+          # here are used by this job — the image is built entirely inside Docker.
+          available() { df --output=avail -BM / | tail -n 1 | tr -dc '0-9'; }
+          before=$(available)
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift \
+            /usr/local/share/powershell \
+            /opt/hostedtoolcache/CodeQL
+          echo "Free space on /: ${before}MB -> $(available)MB"
+
       - name: "Compute Docker build args"
         id: build-args
         run: |

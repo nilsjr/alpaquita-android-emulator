@@ -14,3 +14,8 @@ indent_size = 2
 [*.md]
 indent_size = 2
 trim_trailing_whitespace = false
+
+# shfmt reads this: keep `case` labels indented one level, matching how the
+# shell scripts here are already written.
+[{*.sh,emulator-tools,commit-msg}]
+switch_case_indent = true
