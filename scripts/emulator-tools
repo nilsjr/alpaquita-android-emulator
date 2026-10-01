@@ -80,8 +80,8 @@ stop_background_helpers() {
 # Populates the global `emulator_args` array with the battle-tested flag set from the old
 # repo's start-emulator.sh, fixing defect #4 by only adding -memory when EMULATOR_RAM_MB is
 # actually set (the old script read MEMORY/PARTITION_SIZE and then never passed either one to
-# the emulator) and defect #16 by passing the locale as a launch property instead of a
-# post-boot setprop + framework restart.
+# the emulator). The locale goes through -change-locale because `-prop` only accepts qemu.*
+# properties and silently drops persist.sys.locale.
 build_emulator_args() {
     emulator_args=(
         -avd "${EMULATOR_AVD_NAME}"
@@ -96,7 +96,7 @@ build_emulator_args() {
     )
     [ -n "${EMULATOR_RAM_MB:-}" ] && emulator_args+=(-memory "${EMULATOR_RAM_MB}")
     [ "${EMULATOR_WIPE_DATA}" = "true" ] && emulator_args+=(-wipe-data)
-    [ -n "${EMULATOR_LOCALE:-}" ] && emulator_args+=(-prop "persist.sys.locale=${EMULATOR_LOCALE}")
+    [ -n "${EMULATOR_LOCALE:-}" ] && emulator_args+=(-change-locale "${EMULATOR_LOCALE}")
 
     if [ -n "${EMULATOR_EXTRA_ARGS:-}" ]; then
         local -a extra_args
@@ -165,7 +165,6 @@ cmd_wait_ready() {
 
     [ "${EMULATOR_DISABLE_ANIMATIONS}" = "true" ] && disable_animations
     [ "${EMULATOR_HIDDEN_API_POLICY}" = "true" ] && enable_hidden_api_policy
-    assert_locale_matches
 
     update_state "ANDROID_READY"
 }

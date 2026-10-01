@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Orchestrates the boot smoke test: the root leg (release gate), the alternate-UID
 # leg (future-proofing for a possible non-root cluster, not a release gate), and the
-# locale leg (the device boots straight into the target locale), each in its own
+# locale leg (wait-ready returns with the target locale applied), each in its own
 # container so a failure on one leg cannot poison the next.
 #
 # Each leg runs as a separate script invocation (a fresh bash process) rather than a

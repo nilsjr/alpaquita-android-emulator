@@ -140,7 +140,7 @@ All of these are set as `ENV` in the image (with the defaults below) and are ove
 | `EMULATOR_DISABLE_ANIMATIONS` | `true` | After boot, zero out the three `*_animation_scale` settings for deterministic UI tests. |
 | `EMULATOR_HIDDEN_API_POLICY` | `true` | After boot, set `hidden_api_policy*` to `1`. |
 | `EMULATOR_WIPE_DATA` | `false` | Adds `-wipe-data` on launch when `true`. Off by default so the baked data partition survives across boots — the old image wiped on every boot, which cost minutes per run for nothing. |
-| `EMULATOR_LOCALE` | *(unset)* | Passed as `-prop persist.sys.locale=<value>` at emulator launch, so the device boots into the target locale **once**. See [FAQ](#faq). |
+| `EMULATOR_LOCALE` | *(unset)* | Passed as `-change-locale <value>` at emulator launch; `wait-ready` returns only once the device is back up in that locale. See [FAQ](#faq). |
 | `EMULATOR_RAM_MB` | *(unset)* | When set, adds `-memory <value>` on launch. Unset means the AVD's baked `hw.ramSize` (`4096` by default) applies. |
 | `EMULATOR_EXTRA_ARGS` | *(unset)* | Appended verbatim to the `emulator` command line, for one-off flags not otherwise exposed. |
 | `EMULATOR_REQUIRE_KVM` | `true` | `emulator-tools start` runs `emulator -accel-check` first and fails fast with an actionable message if it doesn't pass. Set to `false` only to deliberately allow an unaccelerated (very slow) boot. |
@@ -213,7 +213,7 @@ image now does what they used to do by hand:
 | `stage('Install Maestro CLI')` — unpinned `curl … \| bash`, on every build | Gone. Maestro is baked into the `-maestro` variant, version-pinned and Renovate-tracked. |
 | `stage('Prepare Emulator')` — hand-rolled `adb`/boot-completed polling | `emulator-tools wait-ready` — a real poll with a timeout and a non-zero exit on failure. |
 | Manual `settings put global *_animation_scale 0` calls | Image default (`EMULATOR_DISABLE_ANIMATIONS=true`). |
-| `setprop persist.sys.locale` + `adb shell "stop; start"` + a **second** boot wait | `EMULATOR_LOCALE` as a launch property — the device boots in the target locale in **one** boot. |
+| `setprop persist.sys.locale` + `adb shell "stop; start"` + a **second** boot wait | `EMULATOR_LOCALE` — the emulator applies it, `wait-ready` waits for it. |
 | `adb start-server` run by the pipeline | The entrypoint's job now. |
 
 The pod spec needs exactly one added line — see [Kubernetes guidance](#kubernetes-guidance) above for
@@ -256,12 +256,14 @@ has to be **earned by validation**, not assumed safe — run your actual UI-test
 types before switching a production pipeline over, and keep `google_apis` (`SYSTEM_IMAGE_TYPE_LEGACY` in
 `versions.env`) as the documented escape hatch for flows that need full GMS or Play Store.
 
-**How does `EMULATOR_LOCALE` save time?**\
-The old approach was: boot, `setprop persist.sys.locale <locale>`, `adb shell "stop; start"` (a full
-framework restart), then wait for `sys.boot_completed` a *second* time — inside a CI stage with a fixed
-time budget. Passing the locale as an emulator launch property (`-prop persist.sys.locale=<value>`)
-instead means the device simply boots into the right locale the first time. One boot instead of two is
-the single biggest wall-clock win available in this migration.
+**How does `EMULATOR_LOCALE` work?**\
+The emulator has no way to boot straight into a locale: `-prop` only accepts `qemu.*` properties and
+silently drops `persist.sys.locale`. `-change-locale <locale>` is the supported path. It sets the locale
+after the first boot completes and then restarts the framework, every time, even when the locale is
+already persisted. `sys.boot_completed` stays `1` during that restart, so polling it alone reports ready
+too early. `wait-ready` therefore also waits until `persist.sys.locale` matches, `system_server` has
+restarted, and user 0 is `RUNNING_UNLOCKED` again. That costs a framework restart (a few seconds), not a
+second cold boot, and pipelines no longer script it themselves.
 
 **Why is `ANDROID_EMULATOR_VERSION` pinned to `37.1.11` and not the newer-looking `37.2.5`?**\
 Google publishes emulator builds across several channels (stable/beta/canary/dev). `sdkmanager` installs

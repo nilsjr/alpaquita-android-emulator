@@ -2,8 +2,7 @@
 set -euo pipefail
 
 # Boots a second, dedicated container with EMULATOR_LOCALE set and asserts the device
-# boots directly into that locale — replacing the old "boot, setprop, stop/start,
-# reboot" dance — verified here without any framework restart.
+# is in that locale as soon as wait-ready returns, with no locale handling by the caller.
 #
 # Usage: run-locale-leg.sh <image> <container_name> <locale>
 

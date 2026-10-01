@@ -66,6 +66,24 @@ is_boot_completed() {
     [ "${prop}" = "1" ]
 }
 
+# -change-locale applies the locale only after the first sys.boot_completed=1 and then restarts
+# the framework (at least once, even when the locale was already persisted), while
+# sys.boot_completed stays 1 throughout. A restarted system_server (start_count >= 2) whose
+# user 0 is unlocked again is the earliest point the device is usable in the new locale.
+is_locale_applied() {
+    local state
+    # One device-side snapshot instead of three round trips; the expansions run on the device.
+    # shellcheck disable=SC2016
+    state=$(adb -s "${emulator_serial}" shell \
+        'echo "$(getprop persist.sys.locale) $(getprop sys.system_server.start_count) $(am get-started-user-state 0 2>/dev/null)"' \
+        2>/dev/null | tr -d '\r')
+    local locale start_count user_state
+    read -r locale start_count user_state <<<"${state}"
+    [ "${locale}" = "${EMULATOR_LOCALE}" ] &&
+        [ "${start_count:-0}" -ge 2 ] &&
+        [ "${user_state}" = "RUNNING_UNLOCKED" ]
+}
+
 # Polls `predicate` (a function name) until it succeeds or `deadline` (epoch seconds) passes.
 wait_for_condition() {
     local deadline="$1" interval="$2" predicate="$3"
@@ -95,6 +113,13 @@ wait_for_boot() {
         dump_emulator_log_tail
         return 1
     fi
+
+    [ -n "${EMULATOR_LOCALE:-}" ] || return 0
+    if ! wait_for_condition "${deadline}" 1 is_locale_applied; then
+        echo "Error: ${emulator_serial} did not come back up in locale '${EMULATOR_LOCALE}' within ${EMULATOR_BOOT_TIMEOUT}s." >&2
+        dump_emulator_log_tail
+        return 1
+    fi
 }
 
 disable_animations() {
@@ -107,22 +132,6 @@ enable_hidden_api_policy() {
     adb -s "${emulator_serial}" shell settings put global hidden_api_policy_pre_p_apps 1
     adb -s "${emulator_serial}" shell settings put global hidden_api_policy_p_apps 1
     adb -s "${emulator_serial}" shell settings put global hidden_api_policy 1
-}
-
-# Warn-only, and deliberately does not restart the framework: a "setprop + stop; start" cycle
-# to fix a mismatched locale costs a full second boot inside the CI time budget, which is
-# exactly what passing EMULATOR_LOCALE as a launch property (see emulator-tools) exists to
-# avoid. If this ever warns, the launch property/AVD default disagree with
-# the caller's expectation, but the device is still usable.
-assert_locale_matches() {
-    [ -n "${EMULATOR_LOCALE:-}" ] || return 0
-
-    local actual_locale
-    actual_locale=$(adb -s "${emulator_serial}" shell getprop persist.sys.locale 2>/dev/null | tr -d '\r\n')
-
-    if [ "${actual_locale}" != "${EMULATOR_LOCALE}" ]; then
-        echo "Warning: persist.sys.locale is '${actual_locale}', expected '${EMULATOR_LOCALE}'." >&2
-    fi
 }
 
 kvm_preflight() {
