@@ -175,8 +175,9 @@ immediately with an actionable message instead of the old behavior of hanging fo
 > **Never mount a volume over `/opt/android/user`.** This is the single highest-severity operational
 > trap in this project, and it fails silently.
 >
-> Upstream's `ANDROID_SDK_HOME` (`/opt/android/user`) is exactly the path a caching setup would
-> intuitively mount a volume over. If you do that here, the mount masks everything baked under it —
+> Upstream's user-state directory `/opt/android/user` (parent of `ANDROID_USER_HOME` and
+> `GRADLE_USER_HOME`) is exactly the path a caching setup would intuitively mount a volume over. If you
+> do that here, the mount masks everything baked under it —
 > including the pre-warmed `android` CLI (235 MB, otherwise re-downloaded on every job) — with no error
 > at all. This is why the AVD itself lives at **`ANDROID_AVD_HOME=/opt/android/avd`**, a sibling
 > directory outside `/opt/android/user`: mounting over the user directory cannot take the AVD down with

@@ -17,7 +17,7 @@ This repository maintains a specialized, high-performance Docker image designed 
 * **Arbitrary UID Support:** The image must be executable by any arbitrary UID to support restricted Kubernetes environments (e.g., `runAsNonRoot: true` or specific `runAsUser` contexts).
 * **GID 0 Strategy:** Adhere to the **OpenShift/Kubernetes GID 0 pattern**. All defined Android and Gradle directories must be owned by the root group (`chgrp -R 0`) with group permissions mirroring owner permissions (`chmod -R g=u`). This ensures arbitrary-UID CI containers have full read/write access to the following paths:
   * **Tooling (`ANDROID_HOME`):** Contains the Android SDK, build tools, and platform tools.
-  * **User State (`ANDROID_SDK_HOME`):** Parent directory for stateful data, including:
+  * **User State (`/opt/android/user`):** Parent directory for stateful data, including:
     * `ANDROID_USER_HOME`: Stores Android-specific configurations and keys.
     * `GRADLE_USER_HOME`: Stores build caches, dependencies, and daemon logs.
 * **Agnostic Home:** Redirect all stateful data (Gradle caches, Android configs) to a neutral path (`/opt/android/user`) instead of the standard `/root` or `/home`. This ensures portability and simplifies volume mounting for persistent CI caching.
@@ -77,17 +77,17 @@ Android emulator, plus an optional Maestro CLI layer on top. Everything above st
 below are additive and specific to the emulator/Maestro surface. This section states the resulting
 *rules*; the analysis behind them lives in this repository's README and git history.
 
-## AVD Placement — `ANDROID_AVD_HOME` Lives Outside `ANDROID_SDK_HOME`
+## AVD Placement — `ANDROID_AVD_HOME` Lives Outside `/opt/android/user`
 * `ANDROID_AVD_HOME=/opt/android/user` would look like the obvious choice — it is not the one we use.
-  `ANDROID_AVD_HOME=/opt/android/avd` is a GID-0'd **sibling** of `/opt/android/user`
-  (`ANDROID_SDK_HOME`), deliberately outside that subtree.
+  `ANDROID_AVD_HOME=/opt/android/avd` is a GID-0'd **sibling** of `/opt/android/user` (the parent of
+  `ANDROID_USER_HOME` and `GRADLE_USER_HOME`), deliberately outside that subtree.
 * **Why this matters more than it looks:** the production Jenkins pod mounts a cache volume over the
   *entire* `/opt/android/user` directory. Anything baked under that path — including a pre-created AVD
   or the pre-warmed `android` CLI payload (see below) — would be silently masked at container start.
   No error, no log line: just a missing AVD (`avdmanager list` shows nothing) and a 235 MB re-download
   on every single job. This is exactly the class of bug that is expensive to diagnose because the image
   looks correct in isolation and only breaks once mounted the way production actually mounts it.
-* **Rule:** never move the AVD back under `ANDROID_SDK_HOME`. If a pod ever needs a persistent cache
+* **Rule:** never move the AVD back under `/opt/android/user`. If a pod ever needs a persistent cache
   volume in the emulator container, mount the narrow `${GRADLE_USER_HOME}` path
   (`/opt/android/user/.gradle`), never the whole user directory. Document this trap in the README, not
   just here — it is the single highest-severity operational risk in this project.

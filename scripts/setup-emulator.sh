@@ -16,6 +16,9 @@ avd_name=android-ci
 system_image_package="system-images;android-${api_level};${img_type};${architecture}"
 avd_config_template=/tmp/config.ini.template
 avd_config_path="${ANDROID_AVD_HOME}/${avd_name}.avd/config.ini"
+# Upstream dropped the deprecated ANDROID_SDK_HOME; the shared parent of ANDROID_USER_HOME and
+# GRADLE_USER_HOME is the same /opt/android/user directory it used to name.
+android_user_state_dir=$(dirname "${ANDROID_USER_HOME}")
 
 # Install runtime dependencies of the emulator/qemu binaries and their graphics, audio and
 # ADB-forwarding stacks (alphanumerically sorted; `apk search` misses some of these, e.g.
@@ -96,5 +99,5 @@ rm -rf \
     "${ANDROID_HOME}/.temp" \
     "${ANDROID_USER_HOME}/cache"
 
-chgrp -R 0 "${ANDROID_HOME}" "${ANDROID_SDK_HOME}" "${ANDROID_AVD_HOME}"
-chmod -R g=u "${ANDROID_HOME}" "${ANDROID_SDK_HOME}" "${ANDROID_AVD_HOME}"
+chgrp -R 0 "${ANDROID_HOME}" "${android_user_state_dir}" "${ANDROID_AVD_HOME}"
+chmod -R g=u "${ANDROID_HOME}" "${android_user_state_dir}" "${ANDROID_AVD_HOME}"

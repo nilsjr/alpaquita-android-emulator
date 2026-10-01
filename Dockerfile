@@ -22,8 +22,8 @@ LABEL org.opencontainers.image.description="Alpaquita Android CI image with a ha
       org.opencontainers.image.source="https://github.com/nilsjrfn/alpaquita-android-emulator" \
       org.opencontainers.image.title="Alpaquita Android Emulator"
 
-# ANDROID_AVD_HOME sits outside ANDROID_SDK_HOME on purpose: a k8s cache volume mounted
-# over ANDROID_SDK_HOME must not mask the AVD baked at build time (mount-trap avoided).
+# ANDROID_AVD_HOME sits outside /opt/android/user on purpose: a k8s cache volume mounted
+# over that user directory must not mask the AVD baked at build time (mount-trap avoided).
 ENV ADB_EXPOSE=false
 ENV ANDROID_AVD_HOME=/opt/android/avd
 ENV API_LEVEL=${API_LEVEL}
