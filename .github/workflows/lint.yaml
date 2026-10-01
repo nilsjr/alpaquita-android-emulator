@@ -19,7 +19,7 @@ defaults:
 jobs:
   sh-checker:
     name: "Shell Checker (shellcheck, shfmt)"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -32,7 +32,7 @@ jobs:
 
   yamllint:
     name: "Yamllint"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       YAMLLINT_VERSION: 1.38.0
     steps:
@@ -55,7 +55,7 @@ jobs:
 
   renovate-config-validator:
     name: "Renovate config validator"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -65,7 +65,7 @@ jobs:
 
   actionlint:
     name: "Actionlint"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       ACTIONLINT_VERSION: 1.7.12
     steps:
@@ -83,7 +83,7 @@ jobs:
 
   hadolint:
     name: "Hadolint"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -99,7 +99,7 @@ jobs:
 
   docker-build-checks:
     name: "Docker Buildx Checks"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
