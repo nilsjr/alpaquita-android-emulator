@@ -43,10 +43,10 @@ upstream image — the Java/Kotlin build story (JDK, `mimalloc`, GID 0, `ANDROID
 
 ## Image matrix & tag scheme
 
-The matrix is **API level × variant**, capped at **API 36** — Google has not published a system image
-above 36 for any image type (`google_atd`, `aosp_atd`, `google_apis`), even though newer SDK *platforms*
-exist. The emulator's system-image API level and the base image's compile-time platform API level are
-independent; do not confuse the two.
+The matrix is **API level × variant**, capped at **API 36** — Google has not published an ATD system
+image (`google_atd`, `aosp_atd`) above 36, even though newer SDK *platforms* and a `google_apis`
+`android-37.0` image exist. The emulator's system-image API level and the base image's compile-time
+platform API level are independent; do not confuse the two.
 
 | API | Why it's in the matrix | Default system image |
 | :-- | :--- | :--- |
