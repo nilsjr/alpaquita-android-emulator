@@ -29,7 +29,8 @@ fi
 if ! docker exec "$container_name" emulator-tools wait-ready; then
     echo "ERROR: emulator never reached ANDROID_READY" >&2
     docker exec "$container_name" cat /tmp/android-emulator/emulator.log 2>&1 || true
-    docker exec "$container_name" adb logcat -d 2>&1 || true
+    # Without a device `adb logcat` waits for one forever, so cap it.
+    timeout 60 docker exec "$container_name" adb logcat -d 2>&1 || true
     exit 1
 fi
 
@@ -38,7 +39,7 @@ docker cp "$flow_path" "$container_name:/tmp/settings-smoke.yaml"
 if ! docker exec -e MAESTRO_CLI_NO_ANALYTICS=1 "$container_name" \
     maestro test --format junit --output "/tmp/$report_name" /tmp/settings-smoke.yaml; then
     echo "ERROR: Maestro flow failed" >&2
-    docker exec "$container_name" adb logcat -d 2>&1 || true
+    timeout 60 docker exec "$container_name" adb logcat -d 2>&1 || true
     exit 1
 fi
 

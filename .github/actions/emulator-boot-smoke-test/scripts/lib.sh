@@ -39,6 +39,8 @@ dump_diagnostics() {
     echo "--- /tmp/android-emulator/emulator.log ---"
     docker exec "$container_name" cat /tmp/android-emulator/emulator.log 2>&1 || true
     echo "--- adb logcat -d ---"
-    docker exec "$container_name" adb logcat -d 2>&1 || true
+    # Without a device `adb logcat` waits for one forever; a dead emulator is exactly when
+    # this runs, so cap it rather than hang the job until the 6h runner limit.
+    timeout 60 docker exec "$container_name" adb logcat -d 2>&1 || true
     echo "::endgroup::"
 }
