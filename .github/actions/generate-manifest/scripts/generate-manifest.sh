@@ -5,16 +5,18 @@ image=$1
 image_tag=$2
 report_file=$3
 
-get_sdk_components() {
+# sdkmanager now delegates to the `android` CLI, which lists packages as columns separated
+# by runs of spaces under an "Installed packages:" header instead of the old `|` table.
+# Prints one "path|version|description" line per installed package.
+list_installed_packages() {
     docker run --rm "$image" sdkmanager --list_installed 2>/dev/null |
-        awk -F '|' '
-        /^[[:space:]]*(Path|---)/ { next }
-        /^[[:space:]]+[a-zA-Z0-9.;_-]+[[:space:]]+\|/ {
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1);
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3);
-            printf "| %s | %s | %s |\n", $1, $2, $3
-        }' | sort
+        awk -F '  +' '
+        /^Installed packages:/ { listing = 1; next }
+        listing && /^  [^ ]/ { print $2 "|" $3 "|" $4 }'
+}
+
+get_sdk_components() {
+    list_installed_packages | awk -F '|' '{ printf "| %s | %s | %s |\n", $1, $2, $3 }' | sort
 }
 
 get_apk_packages() {
@@ -41,13 +43,7 @@ get_emulator_version() {
 # Pull just the system-images row out of the same sdkmanager listing used above, so
 # it is visible at a glance without scrolling the full component table.
 get_system_image_row() {
-    docker run --rm "$image" sdkmanager --list_installed 2>/dev/null |
-        awk -F '|' '
-        /system-images;/ {
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1);
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
-            print $1 " (" $2 ")"
-        }' | head -n1
+    list_installed_packages | awk -F '|' '/^system-images/ { print $1 " (" $2 ")" }' | head -n1
 }
 
 # The baked AVD profile: name plus the ram/cores/resolution knobs
@@ -72,7 +68,7 @@ get_avd_summary() {
 # Only present in the maestro variant; an empty result means "omit the row".
 get_maestro_version() {
     docker run --rm "$image" sh -c \
-        'command -v maestro >/dev/null 2>&1 && maestro --version' 2>/dev/null
+        'if command -v maestro >/dev/null 2>&1; then maestro --version; fi' 2>/dev/null
 }
 
 generate_markdown_body() {
