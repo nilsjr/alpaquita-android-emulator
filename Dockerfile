@@ -1,10 +1,10 @@
-# syntax=docker/dockerfile:1@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
+# syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 # check=experimental=all;error=true
 
 # VARIANT selects the published stage (emulator|maestro); global-scope on purpose — only global args are visible to FROM expansion
 ARG VARIANT=emulator
 
-FROM g00fy2/alpaquita-android:android-37.1-jdk26-v2026.7.0@sha256:3834a836a4aaab4901ceabef8aab593df33f7eeff5d53e2c17082753e91c33af AS emulator
+FROM g00fy2/alpaquita-android:android-37.2-jdk26-v2026.10.2@sha256:47c09758f40b93542939cb964de9884f3e8b3523fd60b4db32ef9aeed5be62da AS emulator
 
 ARG ANDROID_EMULATOR_VERSION
 ARG API_LEVEL=34
