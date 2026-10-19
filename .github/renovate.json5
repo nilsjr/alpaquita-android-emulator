@@ -99,18 +99,18 @@
         },
     ],
     customDatasources: {
-        // Resolves the emulator revision (major.minor.micro) tied to the STABLE channel
-        // in Google's repository XML. Google lists the dev/beta/stable/canary emulator
-        // packages back-to-back, each as path -> revision -> channelRef, so pairing a
-        // "channel-0" (stable) channelRef line with the "remotePackage path=\"emulator\""
-        // marker four filtered lines earlier — and the two revision lines in between —
-        // reliably identifies the stable release without depending on which channel
-        // happens to be listed first. Verified against the live XML on 2026-08-21.
+        // Resolves the emulator revision (major.minor.micro) of the package tied to the
+        // STABLE channel in Google's repository XML, mirroring the emulator-version-fetcher
+        // action: resolve the stable channel id, then scan every
+        // <remotePackage path="emulator"> ... </remotePackage> block and read the first
+        // <major>/<minor>/<micro> inside it (later ones belong to <dependencies>).
+        // Working per block instead of at fixed line offsets keeps the lookup stable when
+        // Google adds, removes or reorders elements inside a package.
         android_emulator_version: {
             defaultRegistryUrlTemplate: 'https://dl.google.com/android/repository/repository2-3.xml',
             format: 'plain',
             transformTemplates: [
-                "($arr := releases.version; $matchIdx := $arr#$i[$contains($, '<channelRef ref=\"channel-0\"/>') and $i >= 4 and $contains($arr[$i-4], 'remotePackage path=\"emulator\"')].$i; $idx := $matchIdx[0]; $idx != null ? {\"releases\": [{\"version\": $replace($arr[$idx-3], /.*<major>([0-9]+).*/, \"$1\") & \".\" & $replace($arr[$idx-2], /.*<minor>([0-9]+).*/, \"$1\") & \".\" & $replace($arr[$idx-1], /.*<micro>([0-9]+).*/, \"$1\")}]} : {\"releases\": []})",
+                "($lines := releases.version; $numbered := $lines#$i.{\"index\": $i, \"line\": $}; $stableChannelLine := $numbered[$contains(line, '>stable</channel>')][0].line; $stableChannelId := $stableChannelLine ? $replace($stableChannelLine, /.*<channel id=\"([^\"]+)\">.*/, \"$1\") : 'channel-0'; $packageEnds := [$numbered[$contains(line, '</remotePackage>')].index]; $revisionPart := function($block, $tag) { ($tagLine := $block[$contains($, '<' & $tag & '>')][0]; $tagLine ? $replace($tagLine, /.*>([0-9]+)<.*/, \"$1\") : '0') }; $stableVersions := [$numbered[$contains(line, 'remotePackage path=\"emulator\"')].index.($start := $; $end := $min($packageEnds[$ > $start]); $block := $numbered[index > $start and index < $end].line; $count($block[$contains($, '<channelRef ref=\"' & $stableChannelId & '\"/>')]) > 0 ? $revisionPart($block, 'major') & '.' & $revisionPart($block, 'minor') & '.' & $revisionPart($block, 'micro'))]; $count($stableVersions) > 0 ? {\"releases\": [{\"version\": $stableVersions[0]}]} : {\"releases\": []})",
             ],
         },
     },
