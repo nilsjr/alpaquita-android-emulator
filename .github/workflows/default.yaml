@@ -57,7 +57,7 @@ jobs:
       - name: "Resolve API level matrix from versions.env"
         id: api-levels
         run: |
-          # EMULATOR_API_LEVELS is newest-first (e.g. "36,34"); the first entry is the
+          # EMULATOR_API_LEVELS is newest-first (e.g. "37.0,36,34"); the first entry is the
           # one that receives the `latest` tag and the one PR/main builds narrow down to.
           json=$(echo "${{ env.EMULATOR_API_LEVELS }}" | tr ',' '\n' | jq -R . | jq -s -c .)
           latest=$(echo "${{ env.EMULATOR_API_LEVELS }}" | cut -d',' -f1)

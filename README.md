@@ -43,18 +43,20 @@ upstream image — the Java/Kotlin build story (JDK, `mimalloc`, GID 0, `ANDROID
 
 ## Image matrix & tag scheme
 
-The matrix is **API level × variant**, capped at **API 36** — Google has not published an ATD system
-image (`google_atd`, `aosp_atd`) above 36, even though newer SDK *platforms* and a `google_apis`
-`android-37.0` image exist. The emulator's system-image API level and the base image's compile-time
-platform API level are independent; do not confuse the two.
+The matrix is **API level × variant**, capped at the highest API level Google has published a
+`google_atd` system image for — currently **API 37** (`android-37.0`). The emulator's system-image API
+level and the base image's compile-time platform API level are independent; do not confuse the two.
 
 | API | Why it's in the matrix | Default system image |
 | :-- | :--- | :--- |
-| **36** | Highest bootable level today; catches new-platform behavior early; receives the `latest` tag. | `google_atd` |
+| **37.0** | Highest bootable level today; catches new-platform behavior early; receives the `latest` tag. | `google_atd` |
+| **36** | Previous platform release, for apps that have not moved their `targetSdk` to 37 yet. | `google_atd` |
 | **34** | Continuity with the current production baseline (`api-34`); the baseline-profile generation level. | `google_atd` (an `aosp_atd` build is also produced for the baseline-profile job) |
 
 `EMULATOR_API_LEVELS` in [`versions.env`](versions.env) is the single source of truth for the published
-API levels; its first (leftmost) entry is the one that receives `latest`.
+API levels; its first (leftmost) entry is the one that receives `latest`. Entries are spelled the way
+Google names the system image, so API 37 is `37.0` (tag `android-37.0-emulator`) while older levels are
+plain integers (`android-36-emulator`).
 
 | Tag pattern | Rolling / immutable | Meaning |
 | :--- | :--- | :--- |
@@ -62,7 +64,7 @@ API levels; its first (leftmost) entry is the one that receives `latest`.
 | `android-<api>-emulator-maestro` | rolling | Same, plus the pinned Maestro CLI. |
 | `android-<api>-emulator-v<year>.<rel>.<patch>` | **immutable** | Pin this in production/CI pipelines. |
 | `android-<api>-emulator-maestro-v<year>.<rel>.<patch>` | **immutable** | Same, plus Maestro. |
-| `latest` | rolling | API 36, `emulator` variant. |
+| `latest` | rolling | API 37 (`android-37.0`), `emulator` variant. |
 
 Docker Hub namespace: **`nilsjrfn/alpaquita-android-emulator`** (GHCR is not used for this image — the
 production cluster's pull-through mirror resolves the Docker Hub path).
@@ -133,7 +135,7 @@ All of these are set as `ENV` in the image (with the defaults below) and are ove
 | :--- | :--- | :--- |
 | `ADB_EXPOSE` | `false` | Forward ADB (`5555`) and the console (`5554`) via `socat` from the container's own network address — only needed for the sidecar pattern (see above). |
 | `ANDROID_AVD_HOME` | `/opt/android/avd` | Where the baked AVD lives. Technically overridable, but never should be — see [Kubernetes guidance](#kubernetes-guidance) for why. |
-| `API_LEVEL` | *(baked per tag, e.g. `36` or `34`)* | The system-image API level this tag was built for. Informational; not meant to be changed at runtime. |
+| `API_LEVEL` | *(baked per tag, e.g. `37.0`, `36` or `34`)* | The system-image API level this tag was built for. Informational; not meant to be changed at runtime. |
 | `EMULATOR_AVD_NAME` | `android-ci` | Name of the AVD `emulator-tools` boots. |
 | `EMULATOR_BOOT_TIMEOUT` | `600` (seconds) | Deadline for `emulator-tools wait-ready`; exits non-zero and dumps the last 50 log lines on timeout. |
 | `EMULATOR_CORES` | `4` (baked from the `CORES` build arg) | vCPUs passed to `emulator -cores`. |

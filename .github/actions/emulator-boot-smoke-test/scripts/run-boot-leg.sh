@@ -37,9 +37,12 @@ if ! grep -qE '^emulator-5554[[:space:]]+device' <<<"$devices_output"; then
     exit 1
 fi
 
+# System images from API 37 on are named after the full SDK version ("37.0"), while
+# ro.build.version.sdk only reports the major ("37").
+expected_sdk=${api_level%%.*}
 actual_sdk=$(docker exec "$container_name" adb shell getprop ro.build.version.sdk | tr -d '\r\n')
-if [[ "$actual_sdk" != "$api_level" ]]; then
-    echo "ERROR: ro.build.version.sdk is '$actual_sdk', expected '$api_level'" >&2
+if [[ "$actual_sdk" != "$expected_sdk" ]]; then
+    echo "ERROR: ro.build.version.sdk is '$actual_sdk', expected '$expected_sdk'" >&2
     dump_diagnostics "$container_name"
     exit 1
 fi
