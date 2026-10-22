@@ -8,9 +8,8 @@
         ':disableRateLimiting',
         ':automergeAll',
     ],
-    // The g00fy2/alpaquita-android base image in the Dockerfile FROM line is already
-    // pinned as tag@digest, so Renovate's built-in docker manager tracks and bumps it
-    // automatically — no custom manager or datasource is needed for it.
+    // The g00fy2/alpaquita-android base image in the Dockerfile FROM line is tracked by
+    // Renovate's built-in docker manager; see the packageRule below for its versioning.
     customManagers: [
         {
             customType: 'regex',
@@ -116,10 +115,15 @@
     },
     packageRules: [
         {
-            description: 'Use "fix" for the pinned base image digest bump',
+            // Tags look like "android-37.2-jdk26-v2026.10.5". Docker versioning rejects the
+            // non-numeric "android-" prefix, and the release tags are immutable, so without
+            // this rule Renovate never proposes a newer release. The platform/JDK part is
+            // the compatibility key, so only the upstream release number moves.
+            description: 'Track base image releases within the pinned platform/JDK line and use "fix"',
             matchPackageNames: [
                 'g00fy2/alpaquita-android',
             ],
+            versioning: 'regex:^android-(?<compatibility>.+)-v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$',
             semanticCommitType: 'fix',
         },
         {
