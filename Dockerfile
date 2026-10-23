@@ -69,6 +69,7 @@ ARG MAESTRO_VERSION
 
 # Maestro keeps its state and unpacked deps under user.home/.maestro. An arbitrary UID gets
 # HOME=/, which it cannot write, so point the JVM at the GID-0 writable user directory.
+ENV MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
 ENV MAESTRO_CLI_NO_ANALYTICS=1
 ENV MAESTRO_OPTS=-Duser.home=/opt/android/user
 ENV PATH=/opt/maestro/bin:${PATH}
