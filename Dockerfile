@@ -4,7 +4,7 @@
 # VARIANT selects the published stage (emulator|maestro); global-scope on purpose — only global args are visible to FROM expansion
 ARG VARIANT=emulator
 
-FROM g00fy2/alpaquita-android:android-37.2-jdk26-v2026.10.2@sha256:47c09758f40b93542939cb964de9884f3e8b3523fd60b4db32ef9aeed5be62da AS emulator
+FROM g00fy2/alpaquita-android:android-37.2-jdk26-v2026.10.5@sha256:38cf56cc1c77d4e9a40551f5c20de5d3f0de6005f9f08821ca1b5d7962edc02d AS emulator
 
 ARG ANDROID_EMULATOR_VERSION
 ARG API_LEVEL=34

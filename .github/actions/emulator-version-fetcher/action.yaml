@@ -7,7 +7,7 @@ description: >-
 
 inputs:
   api_levels:
-    description: 'Comma-separated API levels to assert a google_atd x86_64 system image for (e.g. "36,34")'
+    description: 'Comma-separated API levels to assert a google_atd x86_64 system image for (e.g. "37.0,36,34")'
     required: true
 
 outputs:

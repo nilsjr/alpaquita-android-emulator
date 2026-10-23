@@ -115,14 +115,17 @@ below are additive and specific to the emulator/Maestro surface. This section st
   on this. If `emulator-tools` ever delegates to `android emulator start` as a convenience, the
   `adb`-based path must remain the fallback.
 
-## The API-36 System-Image Ceiling
+## The ATD System-Image Ceiling
 * The SDK **platform** version and the emulator **system image** version are independent axes. The base
-  image may compile against a newer platform, but as of this writing (2026-10) Google has not published
-  an ATD system image (`google_atd`, `aosp_atd`) past **API 36**. `google_apis` already has `android-37.0`,
-  but the ATD default is what every API level is built with, so it sets the ceiling.
-  `EMULATOR_API_LEVELS` in `versions.env` must never list an API level above that ceiling.
-* CI asserts this via the `emulator-version-fetcher` action instead of assuming it, so the day Google
-  publishes an API 37 ATD image, the assertion — not a stale comment — is what surfaces it.
+  image may compile against a newer platform before Google publishes a bootable ATD system image
+  (`google_atd`) for it. The ATD default is what every API level is built with, so it sets the ceiling:
+  `EMULATOR_API_LEVELS` in `versions.env` must never list an API level without a published `google_atd`
+  x86_64 image. As of 2026-10 that ceiling is **API 37** (`android-37.0`).
+* List each level the way Google names its system image: from API 37 on that includes the minor version
+  (`37.0`), which flows into the image tag (`android-37.0-emulator`). Anything comparing against the
+  device's `ro.build.version.sdk` must strip it back to the major.
+* CI asserts this via the `emulator-version-fetcher` action instead of assuming it, so a level Google has
+  not published yet fails the build up front rather than relying on a stale comment.
 
 ## Animations and the Hidden-API Policy Are Off/On By Default
 * `EMULATOR_DISABLE_ANIMATIONS=true` and `EMULATOR_HIDDEN_API_POLICY=true` are the baked defaults. Both
