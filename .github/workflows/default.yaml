@@ -332,6 +332,9 @@ jobs:
         with:
           allowUpdates: true
           bodyFile: ${{ steps.merge-manifests.outputs.merged_manifests_path }}
+          # Without it, a new tag is cut from the branch head at release time, which can be
+          # a later commit than the one this run validated.
+          commit: ${{ github.sha }}
           prerelease: ${{ needs.setup.outputs.environment != 'release' }}
           generateReleaseNotes: true
           tag: ${{ needs.versioning.outputs.version }}
