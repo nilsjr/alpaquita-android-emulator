@@ -66,9 +66,13 @@ get_avd_summary() {
 }
 
 # Only present in the maestro variant; an empty result means "omit the row".
+# `maestro --version` may prepend multi-line promo banners, so keep only the last
+# version-shaped token to stop future banners from breaking the markdown table.
 get_maestro_version() {
-    docker run --rm "$image" sh -c \
-        'if command -v maestro >/dev/null 2>&1; then maestro --version; fi' 2>/dev/null
+    docker run --rm -e MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true "$image" sh -c \
+        'if command -v maestro >/dev/null 2>&1; then maestro --version; fi' 2>/dev/null |
+        awk 'match($0, /[0-9]+(\.[0-9]+)+(-[0-9A-Za-z.]+)?/) { version = substr($0, RSTART, RLENGTH) }
+            END { if (version != "") print version }'
 }
 
 generate_markdown_body() {

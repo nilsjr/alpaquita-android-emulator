@@ -16,7 +16,7 @@ rm "${maestro_archive_path}"
 # Throwaway home for the version check: baking .maestro under /opt/android/user would leave
 # root-owned state there that arbitrary UIDs cannot write, and a cache mount would mask it.
 build_time_home=$(mktemp -d)
-installed_version_output=$(MAESTRO_OPTS="-Duser.home=${build_time_home}" "${maestro_binary_path}" --version)
+installed_version_output=$(MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true MAESTRO_OPTS="-Duser.home=${build_time_home}" "${maestro_binary_path}" --version)
 rm -rf "${build_time_home}"
 if ! grep -q "${maestro_version}" <<<"${installed_version_output}"; then
     echo "Error: '${maestro_binary_path} --version' printed '${installed_version_output}'," >&2
