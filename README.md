@@ -60,7 +60,7 @@ Google names the system image, so API 37 is `37.0` (tag `android-37.0-emulator`)
 plain integers (`android-36-emulator`).
 
 Every API level is also published with the `google_apis` system image (`SYSTEM_IMAGE_TYPE_LEGACY`), tagged
-with a `-google-apis` suffix. ATD images ship without Chrome, so anything that opens the system browser —
+with a `-google-apis` suffix, for the `maestro` variant only. ATD images ship without Chrome, so anything that opens the system browser —
 Custom Tabs, OAuth/OIDC logins via AppAuth — fails there with no activity to handle the `https` intent. Use
 the `-google-apis` tags for those flows; the boot smoke test asserts Chrome is installed on them.
 
@@ -70,7 +70,7 @@ the `-google-apis` tags for those flows; the boot smoke test asserts Chrome is i
 | `android-<api>-emulator-maestro` | rolling | Same, plus the pinned Maestro CLI. |
 | `android-<api>-emulator-v<year>.<rel>.<patch>` | **immutable** | Pin this in production/CI pipelines. |
 | `android-<api>-emulator-maestro-v<year>.<rel>.<patch>` | **immutable** | Same, plus Maestro. |
-| `android-<api>-emulator-google-apis[-maestro][-v<year>.<rel>.<patch>]` | as above | Same tags, built on `google_apis` instead of `google_atd` (includes Chrome). |
+| `android-<api>-emulator-google-apis-maestro[-v<year>.<rel>.<patch>]` | as above | The Maestro tags, built on `google_apis` instead of `google_atd` (includes Chrome). |
 | `latest` | rolling | API 37 (`android-37.0`), `google_atd`, `emulator` variant. |
 
 Docker Hub namespace: **`nilsjrfn/alpaquita-android-emulator`** (GHCR is not used for this image — the
@@ -264,8 +264,8 @@ creates them.
 and use less RAM, and they are what Google explicitly builds for CI. But production runs `google_apis`
 today, and ATD images drop the Play Store, Chrome and some system surface. Treat `google_atd` as a default that
 has to be **earned by validation**, not assumed safe — run your actual UI-test suite against both image
-types before switching a production pipeline over, and use the published `-google-apis` tags (`SYSTEM_IMAGE_TYPE_LEGACY` in
-`versions.env`) for flows that need a browser or more of GMS. Neither image type has the Play Store.
+types before switching a production pipeline over, and use the published `-google-apis-maestro` tags (`SYSTEM_IMAGE_TYPE_LEGACY`
+in `versions.env`) for flows that need a browser or more of GMS. Neither image type has the Play Store.
 
 **How does `EMULATOR_LOCALE` work?**\
 The emulator has no way to boot straight into a locale: `-prop` only accepts `qemu.*` properties and

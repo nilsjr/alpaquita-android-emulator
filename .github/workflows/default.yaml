@@ -36,6 +36,7 @@ jobs:
       api_levels: ${{ steps.api-levels.outputs.json }}
       latest_api_level: ${{ steps.api-levels.outputs.latest }}
       image_types: ${{ steps.image-types.outputs.json }}
+      legacy_image_type: ${{ steps.image-types.outputs.legacy }}
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -70,13 +71,14 @@ jobs:
         id: image-types
         run: |
           # The ATD default lacks Chrome, so google_apis is published alongside it for
-          # browser-dependent flows (Custom Tabs / OAuth logins).
+          # browser-dependent flows (Custom Tabs / OAuth logins), maestro variant only.
           json=$(jq -n -c \
             --arg default "${{ env.SYSTEM_IMAGE_TYPE_DEFAULT }}" \
             --arg legacy "${{ env.SYSTEM_IMAGE_TYPE_LEGACY }}" \
             '[$default, $legacy]')
           echo "Image types: $json"
           echo "json=$json" >> "$GITHUB_OUTPUT"
+          echo "legacy=${{ env.SYSTEM_IMAGE_TYPE_LEGACY }}" >> "$GITHUB_OUTPUT"
 
       - name: "Fetch stable emulator version and assert the system-image ceiling"
         uses: ./.github/actions/emulator-version-fetcher
@@ -117,8 +119,13 @@ jobs:
         # variant and image_type are always the full set; api_level narrows to the latest
         # level alone on PR/main so preview builds cover one combo per variant and image
         # type, while releases build the full matrix (mirrors upstream's narrowing pattern).
+        # google_apis exists for browser-dependent Maestro login flows, so it skips the
+        # plain emulator variant.
         variant: [ emulator, maestro ]
         image_type: ${{ fromJson(needs.setup.outputs.image_types) }}
+        exclude:
+          - variant: emulator
+            image_type: ${{ needs.setup.outputs.legacy_image_type }}
         api_level: ${{
           fromJson(
           needs.setup.outputs.environment == 'release' &&
