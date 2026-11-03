@@ -279,7 +279,7 @@ second cold boot, and pipelines no longer script it themselves.
 **Why is `ANDROID_EMULATOR_VERSION` sometimes behind the newest emulator release?**\
 Google publishes emulator builds across several channels (stable/beta/canary/dev). `sdkmanager` installs
 from the **stable** channel by default (`--channel=0`), so `versions.env` pins whatever that channel
-serves (`37.2.12` as of this writing), even when a newer-looking build sits in the *dev* or *canary*
+serves (`37.2.13` as of this writing), even when a newer-looking build sits in the *dev* or *canary*
 channel. Renovate tracks the stable channel only, and the build fails if the installed version drifts.
 Pinning the version our build step actually installs (and asserts against, at build time) keeps
 `versions.env` truthful instead of aspirational.
