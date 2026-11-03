@@ -6,7 +6,7 @@ set -euo pipefail
 # the baked AVD was found (a mount over /opt/android/user would silently mask it), and
 # the android CLI pre-warm did not regress (no 235 MB re-download).
 #
-# Usage: run-boot-leg.sh <image> <api_level> <container_name> [-- extra docker run args...]
+# Usage: run-boot-leg.sh <image> <api_level> <image_type> <container_name> [-- extra docker run args...]
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=SCRIPTDIR/lib.sh
@@ -14,8 +14,9 @@ source "$script_dir/lib.sh"
 
 image=$1
 api_level=$2
-container_name=$3
-shift 3
+image_type=$3
+container_name=$4
+shift 4
 
 output_log=$(mktemp)
 
@@ -51,6 +52,14 @@ avd_list=$(docker exec "$container_name" avdmanager list avd)
 if grep -q "Unknown AVD" <<<"$avd_list" || ! grep -q "android-ci" <<<"$avd_list"; then
     echo "ERROR: AVD 'android-ci' was not found (a volume mounted over /opt/android/user may have masked it):" >&2
     echo "$avd_list" >&2
+    dump_diagnostics "$container_name"
+    exit 1
+fi
+
+# The google_apis variant exists for browser-dependent flows (Custom Tabs / OAuth logins)
+# that the Chrome-less ATD images cannot run.
+if [[ "$image_type" == "google_apis" ]] && ! docker exec "$container_name" adb shell pm path com.android.chrome | grep -q '^package:'; then
+    echo "ERROR: com.android.chrome is not installed on the $image_type image" >&2
     dump_diagnostics "$container_name"
     exit 1
 fi

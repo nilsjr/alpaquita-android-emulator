@@ -2,9 +2,9 @@ name: 'Emulator Boot Smoke Test'
 description: >-
   Boots the emulator under KVM and asserts: the device is reachable
   over adb, reports the expected SDK level, the baked AVD was found, the android CLI
-  pre-warm did not regress, and a launch-time locale is applied before wait-ready
-  returns. Runs a root leg (release gate), an alternate-UID leg (future-proofing
-  only), and a locale leg.
+  pre-warm did not regress, Chrome is installed on google_apis images, and a
+  launch-time locale is applied before wait-ready returns. Runs a root leg (release
+  gate), an alternate-UID leg (future-proofing only), and a locale leg.
 
 inputs:
   image:
@@ -12,6 +12,9 @@ inputs:
     required: true
   api_level:
     description: 'Expected ro.build.version.sdk for this image'
+    required: true
+  image_type:
+    description: 'System image type the image was built with (e.g. google_atd, google_apis)'
     required: true
 
 runs:
@@ -22,4 +25,5 @@ runs:
       run: |
         "${{ github.action_path }}/scripts/boot-smoke-test.sh" \
           "${{ inputs.image }}" \
-          "${{ inputs.api_level }}"
+          "${{ inputs.api_level }}" \
+          "${{ inputs.image_type }}"

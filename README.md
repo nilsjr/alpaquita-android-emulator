@@ -43,9 +43,10 @@ upstream image — the Java/Kotlin build story (JDK, `mimalloc`, GID 0, `ANDROID
 
 ## Image matrix & tag scheme
 
-The matrix is **API level × variant**, capped at the highest API level Google has published a
-`google_atd` system image for — currently **API 37** (`android-37.0`). The emulator's system-image API
-level and the base image's compile-time platform API level are independent; do not confuse the two.
+The matrix is **API level × system image type × variant**, capped at the highest API level Google has
+published a `google_atd` system image for — currently **API 37** (`android-37.0`). The emulator's
+system-image API level and the base image's compile-time platform API level are independent; do not
+confuse the two.
 
 | API | Why it's in the matrix | Default system image |
 | :-- | :--- | :--- |
@@ -58,13 +59,19 @@ API levels; its first (leftmost) entry is the one that receives `latest`. Entrie
 Google names the system image, so API 37 is `37.0` (tag `android-37.0-emulator`) while older levels are
 plain integers (`android-36-emulator`).
 
+Every API level is also published with the `google_apis` system image (`SYSTEM_IMAGE_TYPE_LEGACY`), tagged
+with a `-google-apis` suffix. ATD images ship without Chrome, so anything that opens the system browser —
+Custom Tabs, OAuth/OIDC logins via AppAuth — fails there with no activity to handle the `https` intent. Use
+the `-google-apis` tags for those flows; the boot smoke test asserts Chrome is installed on them.
+
 | Tag pattern | Rolling / immutable | Meaning |
 | :--- | :--- | :--- |
 | `android-<api>-emulator` | rolling | Latest build for that API level, emulator only. |
 | `android-<api>-emulator-maestro` | rolling | Same, plus the pinned Maestro CLI. |
 | `android-<api>-emulator-v<year>.<rel>.<patch>` | **immutable** | Pin this in production/CI pipelines. |
 | `android-<api>-emulator-maestro-v<year>.<rel>.<patch>` | **immutable** | Same, plus Maestro. |
-| `latest` | rolling | API 37 (`android-37.0`), `emulator` variant. |
+| `android-<api>-emulator-google-apis[-maestro][-v<year>.<rel>.<patch>]` | as above | Same tags, built on `google_apis` instead of `google_atd` (includes Chrome). |
+| `latest` | rolling | API 37 (`android-37.0`), `google_atd`, `emulator` variant. |
 
 Docker Hub namespace: **`nilsjrfn/alpaquita-android-emulator`** (GHCR is not used for this image — the
 production cluster's pull-through mirror resolves the Docker Hub path).
@@ -255,10 +262,10 @@ creates them.
 **ATD vs. `google_apis` — which should I use?**\
 `IMG_TYPE=google_atd` (or `aosp_atd`) is the intended default: Automated Test Device images boot faster
 and use less RAM, and they are what Google explicitly builds for CI. But production runs `google_apis`
-today, and ATD images drop the Play Store and some system surface. Treat `google_atd` as a default that
+today, and ATD images drop the Play Store, Chrome and some system surface. Treat `google_atd` as a default that
 has to be **earned by validation**, not assumed safe — run your actual UI-test suite against both image
-types before switching a production pipeline over, and keep `google_apis` (`SYSTEM_IMAGE_TYPE_LEGACY` in
-`versions.env`) as the documented escape hatch for flows that need full GMS or Play Store.
+types before switching a production pipeline over, and use the published `-google-apis` tags (`SYSTEM_IMAGE_TYPE_LEGACY` in
+`versions.env`) for flows that need a browser or more of GMS. Neither image type has the Play Store.
 
 **How does `EMULATOR_LOCALE` work?**\
 The emulator has no way to boot straight into a locale: `-prop` only accepts `qemu.*` properties and

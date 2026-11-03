@@ -35,6 +35,7 @@ jobs:
       version_suffix: ${{ steps.set-environment.outputs.version_suffix }}
       api_levels: ${{ steps.api-levels.outputs.json }}
       latest_api_level: ${{ steps.api-levels.outputs.latest }}
+      image_types: ${{ steps.image-types.outputs.json }}
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -64,6 +65,18 @@ jobs:
           echo "API levels: $json (latest: $latest)"
           echo "json=$json" >> "$GITHUB_OUTPUT"
           echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: "Resolve system image types from versions.env"
+        id: image-types
+        run: |
+          # The ATD default lacks Chrome, so google_apis is published alongside it for
+          # browser-dependent flows (Custom Tabs / OAuth logins).
+          json=$(jq -n -c \
+            --arg default "${{ env.SYSTEM_IMAGE_TYPE_DEFAULT }}" \
+            --arg legacy "${{ env.SYSTEM_IMAGE_TYPE_LEGACY }}" \
+            '[$default, $legacy]')
+          echo "Image types: $json"
+          echo "json=$json" >> "$GITHUB_OUTPUT"
 
       - name: "Fetch stable emulator version and assert the system-image ceiling"
         uses: ./.github/actions/emulator-version-fetcher
@@ -95,16 +108,17 @@ jobs:
     environment: ${{ needs.setup.outputs.environment }}
     name: >
       ${{ needs.setup.outputs.environment == 'release' && '📦 Build' || '🔬 Validate' }}
-      (API ${{ matrix.api_level }}, ${{ matrix.variant }})
+      (API ${{ matrix.api_level }}, ${{ matrix.image_type }}, ${{ matrix.variant }})
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        # variant is always the full set; api_level narrows to the latest level alone
-        # on PR/main so preview builds cover one combo per variant, while releases
-        # build the full API x variant matrix (mirrors upstream's narrowing pattern).
+        # variant and image_type are always the full set; api_level narrows to the latest
+        # level alone on PR/main so preview builds cover one combo per variant and image
+        # type, while releases build the full matrix (mirrors upstream's narrowing pattern).
         variant: [ emulator, maestro ]
+        image_type: ${{ fromJson(needs.setup.outputs.image_types) }}
         api_level: ${{
           fromJson(
           needs.setup.outputs.environment == 'release' &&
@@ -151,7 +165,7 @@ jobs:
             echo 'build_args<<BUILD_ARGS_EOF'
             echo "VARIANT=${{ matrix.variant }}"
             echo "API_LEVEL=${{ matrix.api_level }}"
-            echo "IMG_TYPE=${{ env.SYSTEM_IMAGE_TYPE_DEFAULT }}"
+            echo "IMG_TYPE=${{ matrix.image_type }}"
             echo "ARCHITECTURE=${{ env.SYSTEM_IMAGE_ARCHITECTURE }}"
             echo "ANDROID_EMULATOR_VERSION=${{ env.ANDROID_EMULATOR_VERSION }}"
             echo "RAM_MB=${{ env.EMULATOR_RAM_MB }}"
@@ -168,6 +182,18 @@ jobs:
             echo 'BUILD_ARGS_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: "Compute image tag"
+        run: |
+          # The default image type keeps the unsuffixed tags; any other type is spelled into
+          # the tag, e.g. android-36-emulator-google-apis-maestro.
+          image_type_suffix=""
+          if [[ "${{ matrix.image_type }}" != "${{ env.SYSTEM_IMAGE_TYPE_DEFAULT }}" ]]; then
+            image_type_suffix="-${{ matrix.image_type }}"
+            image_type_suffix=${image_type_suffix//_/-}
+          fi
+          image_tag="android-${{ matrix.api_level }}-emulator${image_type_suffix}${{ env.TAG_SUFFIX }}"
+          echo "IMAGE_TAG=$image_tag" >> "$GITHUB_ENV"
+
       - name: "Docker metadata"
         id: docker-metadata
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
@@ -175,11 +201,12 @@ jobs:
           images: |
             ${{ env.DOCKER_HUB_IMAGE_NAME }}
           tags: |
-            type=raw,value=android-${{ matrix.api_level }}-emulator${{ env.TAG_SUFFIX }}-${{ env.IMAGE_VERSION }}
-            type=raw,value=android-${{ matrix.api_level }}-emulator${{ env.TAG_SUFFIX }}
+            type=raw,value=${{ env.IMAGE_TAG }}-${{ env.IMAGE_VERSION }}
+            type=raw,value=${{ env.IMAGE_TAG }}
             type=raw,value=latest,enable=${{
               needs.setup.outputs.environment == 'release' &&
               matrix.variant == 'emulator' &&
+              matrix.image_type == env.SYSTEM_IMAGE_TYPE_DEFAULT &&
               matrix.api_level == needs.setup.outputs.latest_api_level
             }}
 
@@ -246,6 +273,7 @@ jobs:
         with:
           image: ${{ steps.set-image-ref.outputs.image }}
           api_level: ${{ matrix.api_level }}
+          image_type: ${{ matrix.image_type }}
 
       - name: "Run Maestro Smoke Test"
         if: ${{ matrix.variant == 'maestro' }}
@@ -257,7 +285,7 @@ jobs:
         if: ${{ matrix.variant == 'maestro' && always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: maestro-report-android${{ matrix.api_level }}
+          name: maestro-report-android${{ matrix.api_level }}-${{ matrix.image_type }}
           path: maestro-report.junit.xml
           if-no-files-found: warn
           archive: false
@@ -271,7 +299,7 @@ jobs:
       - name: "Upload manifest artifact"
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: manifest-android${{ matrix.api_level }}-${{ matrix.variant }}
+          name: manifest-android${{ matrix.api_level }}-${{ matrix.image_type }}-${{ matrix.variant }}
           path: ${{ steps.generate-manifest.outputs.manifest_path }}
           if-no-files-found: error
           archive: false

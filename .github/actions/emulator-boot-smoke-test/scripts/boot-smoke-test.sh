@@ -11,16 +11,17 @@ set -euo pipefail
 # set -euo pipefail for the leg's own internal logic — a well-known bash quirk where
 # errexit is not honored for commands used as an `if`/`while` condition.
 #
-# Usage: boot-smoke-test.sh <image> <api_level>
+# Usage: boot-smoke-test.sh <image> <api_level> <image_type>
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 image=$1
 api_level=$2
+image_type=$3
 locale="de-DE"
 overall_result=0
 
 echo "::group::Boot leg (root)"
-if "$script_dir/run-boot-leg.sh" "$image" "$api_level" "emulator-boot-root"; then
+if "$script_dir/run-boot-leg.sh" "$image" "$api_level" "$image_type" "emulator-boot-root"; then
     echo "Root leg passed."
 else
     echo "Root leg FAILED — this is a release gate." >&2
@@ -29,7 +30,7 @@ fi
 echo "::endgroup::"
 
 echo "::group::Boot leg (alternate UID, future-proofing only)"
-if "$script_dir/run-boot-leg.sh" "$image" "$api_level" "emulator-boot-altuid" --user 12345:0 -e HOME=/tmp; then
+if "$script_dir/run-boot-leg.sh" "$image" "$api_level" "$image_type" "emulator-boot-altuid" --user 12345:0 -e HOME=/tmp; then
     echo "Alternate-UID leg passed."
 else
     echo "::warning::Alternate-UID leg failed — future-proofing for a possible non-root cluster, not a release gate."
