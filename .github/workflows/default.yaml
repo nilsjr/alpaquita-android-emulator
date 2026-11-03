@@ -126,6 +126,10 @@ jobs:
         exclude:
           - variant: emulator
             image_type: ${{ needs.setup.outputs.legacy_image_type }}
+          # shortcut: the API 37.0 google_apis emulator intermittently drops off adb after
+          # -change-locale (release v2026.3.0); re-enable once the locale leg passes reliably.
+          - api_level: '37.0'
+            image_type: ${{ needs.setup.outputs.legacy_image_type }}
         api_level: ${{
           fromJson(
           needs.setup.outputs.environment == 'release' &&

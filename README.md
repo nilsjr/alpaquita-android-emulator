@@ -60,9 +60,11 @@ Google names the system image, so API 37 is `37.0` (tag `android-37.0-emulator`)
 plain integers (`android-36-emulator`).
 
 Every API level is also published with the `google_apis` system image (`SYSTEM_IMAGE_TYPE_LEGACY`), tagged
-with a `-google-apis` suffix, for the `maestro` variant only. ATD images ship without Chrome, so anything that opens the system browser —
-Custom Tabs, OAuth/OIDC logins via AppAuth — fails there with no activity to handle the `https` intent. Use
-the `-google-apis` tags for those flows; the boot smoke test asserts Chrome is installed on them.
+with a `-google-apis` suffix, for the `maestro` variant only. ATD images ship without Chrome, so anything
+that opens the system browser — Custom Tabs, OAuth/OIDC logins via AppAuth — fails there with no activity to
+handle the `https` intent. Use the `-google-apis` tags for those flows; the boot smoke test asserts Chrome is
+installed on them. API 37.0 is skipped for now: its `google_apis` emulator intermittently hangs when
+switching locale, so the newest `-google-apis` tag is API 36.
 
 | Tag pattern | Rolling / immutable | Meaning |
 | :--- | :--- | :--- |
